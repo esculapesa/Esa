@@ -119,7 +119,7 @@ exec ./build/bin/geth \
   --http \
   --http.addr 0.0.0.0 \
   --http.port 8545 \
-  --http.api eth,web3,personal,net,miner \
+  --http.api admin,eth,web3,personal,net,miner \
   --http.corsdomain '*' \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
