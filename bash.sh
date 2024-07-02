@@ -69,7 +69,7 @@ esacoin() {
             ${prefix} docker exec -it esanode ./build/bin/geth attach ipc:$(convert_path "$ipc_path")
         fi
     elif [ "$1" = "run" ]; then
-        docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esculapeso/core-geth:latest
+        docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest
     elif [ "$1" = "stop" ]; then
         if [ "$2" = "only" ]; then
             docker stop esanode
@@ -79,11 +79,11 @@ esacoin() {
         fi
     elif [ "$1" = "docker" ]; then
         if [ "$2" = "build" ]; then
-            docker build -t esculapeso/core-geth:latest .
+            docker build -t esacoin/esanode:latest .
         elif [ "$2" = "pull" ]; then
-            docker pull esculapeso/core-geth:latest
+            docker pull esacoin/esanode:latest
         elif [ "$2" = "push" ]; then
-            docker push esculapeso/core-geth:latest
+            docker push esacoin/esanode:latest
         else
             docker ps
         fi
