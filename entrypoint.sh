@@ -121,6 +121,11 @@ exec ./build/bin/geth \
   --http.port 8545 \
   --http.api admin,eth,web3,personal,net,miner \
   --http.corsdomain '*' \
+  --ws \
+  --ws.addr "0.0.0.0" \
+  --ws.port "8545" \
+  --ws.api "eth,net,web3,personal" \
+  --ws.origins "*" \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
   --allow-insecure-unlock \
