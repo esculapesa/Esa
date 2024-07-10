@@ -126,6 +126,7 @@ exec ./build/bin/geth \
   --ws.port "8545" \
   --ws.api "eth,net,web3,personal" \
   --ws.origins "*" \
+  --syncmode fast \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
   --allow-insecure-unlock \
