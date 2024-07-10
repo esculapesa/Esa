@@ -41,13 +41,13 @@
   "gasUsed": "0x0",
   "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "alloc": {
-    "c342A5B57c9F2Ae7be715cBb1f91918Bc8eC314C": {
+    "0x92a671d4e3295ebc0e2c13bf90a103d0347bd4c3": {
       "balance": "0x341CC4D7E46E7A9F000000"
     },
-    "6e3A2a8A7a62b2875C5A7C8830D4Ef92b8024c5a": {
+    "0x7e56e25355bee0c4f92eeecb1db97bda8e4e5edc": {
       "balance": "0x457BB11FDB3DF8D4000000"
     },
-    "067989a83C4F0972584eA5f68Ec3BaDAf68a4c4e": {
+    "0x2411f1d18a79e3ad80e9a79fe5c0598be6c8d6af": {
       "balance": "0x341CC4D7E46E7A9F000000"
     }
   }
