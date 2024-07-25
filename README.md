@@ -22,21 +22,16 @@ Networks supported by the respective go-ethereum packaged `geth` program.
 | ---    | ---               | ---                                   | ---                                                      | ---                  |
 | ETC    | :zap:             | Ethereum Classic                      | :heavy_check_mark:                                       |                      |
 | ETH    | :zap:             | Ethereum (Foundation)                 | :heavy_check_mark:                                       | :heavy_check_mark:   |
-| ETSC   | :zap:             | Ethereum Social                       | :heavy_check_mark:                                       |                      |
-| ESN    | :zap:             | EtherSocial                           | :heavy_check_mark:                                       |                      |
-| MIX    | :zap:             | Mix                                   | :heavy_check_mark:                                       |                      |
-| ELLA   | :zap:             | Ellaism                               | :no_entry_sign:<sup>[1](#ellaism-footnote)</sup>         |                      |
-| MUSIC  | :zap:             | Musicoin                              | :open_file_folder:<sup>[2](#configuration-capable)</sup> |                      |
 | -      | :zap: :handshake: | Private chains                        | :heavy_check_mark:                                       | :heavy_check_mark:   |
 |        | :zap:             | Mordor (Geth+Parity ETH PoW Testnet)  | :heavy_check_mark:                                       |                      |
 |        | :zap:             | Morden (Geth+Parity ETH PoW Testnet)  |                                                          |                      |
 |        | :zap:             | Ropsten (Geth+Parity ETH PoW Testnet) | :heavy_check_mark:                                       | :heavy_check_mark:   |
 |        | :handshake:       | Rinkeby (Geth-only ETH PoA Testnet)   | :heavy_check_mark:                                       | :heavy_check_mark:   |
 |        | :handshake:       | Goerli (Geth+Parity ETH PoA Testnet)  | :heavy_check_mark:                                       | :heavy_check_mark:   |
-|        | :handshake:       | Kotti (Geth+Parity ETC PoA Testnet)   | :heavy_check_mark:                                       |                      |
 |        | :handshake:       | Kovan (Parity-only ETH PoA Testnet)   |                                                          |                      |
 |        |                   | Tobalaba (EWF Testnet)                |                                                          |                      |
 |        |                   | Ephemeral development PoA network     | :heavy_check_mark:                                       | :heavy_check_mark:   |
+| MINTME | :zap:             | MintMe.com Coin                       | :heavy_check_mark:                                       |                      |
 
 - :zap: = __Proof of Work__
 - :handshake: = __Proof of Authority__
@@ -54,7 +49,7 @@ Ellaism users are asked to switch to
 
 - CoreGeth documentation is available [here](https://etclabscore.github.io/core-geth).
   + Getting Started [Installation](https://etclabscore.github.io/core-geth/getting-started/installation) and [CLI](https://etclabscore.github.io/core-geth/getting-started/run-cli)
-  + [JSONRPC API](https://etclabscore.github.io/core-geth/apis/jsonrpc-apis)
+  + [JSONRPC API](https://etclabscore.github.io/core-geth/JSON-RPC-API)
   + [Developers](https://etclabscore.github.io/core-geth/developers/build-from-source)
   + [Tutorials](https://etclabscore.github.io/core-geth/tutorials/private-network)
 - Further [ethereum/go-ethereum](https://github.com/ethereum/go-ethereum) documentation about can be found [here](https://geth.ethereum.org/docs/).

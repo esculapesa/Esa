@@ -18,47 +18,49 @@ package les
 
 import (
 	"crypto/ecdsa"
-	"reflect"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/les/flowcontrol"
-	lps "github.com/ethereum/go-ethereum/les/lespay/server"
+	vfs "github.com/ethereum/go-ethereum/les/vflux/server"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/p2p/nodestate"
 	"github.com/ethereum/go-ethereum/params/vars"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
-	serverSetup         = &nodestate.Setup{}
-	clientPeerField     = serverSetup.NewField("clientPeer", reflect.TypeOf(&clientPeer{}))
-	clientInfoField     = serverSetup.NewField("clientInfo", reflect.TypeOf(&clientInfo{}))
-	connAddressField    = serverSetup.NewField("connAddr", reflect.TypeOf(""))
-	balanceTrackerSetup = lps.NewBalanceTrackerSetup(serverSetup)
-	priorityPoolSetup   = lps.NewPriorityPoolSetup(serverSetup)
+	defaultPosFactors = vfs.PriceFactors{TimeFactor: 0, CapacityFactor: 1, RequestFactor: 1}
+	defaultNegFactors = vfs.PriceFactors{TimeFactor: 0, CapacityFactor: 1, RequestFactor: 1}
 )
 
-func init() {
-	balanceTrackerSetup.Connect(connAddressField, priorityPoolSetup.CapacityField)
-	priorityPoolSetup.Connect(balanceTrackerSetup.BalanceField, balanceTrackerSetup.UpdateFlag) // NodeBalance implements nodePriority
+const defaultConnectedBias = time.Minute * 3
+
+type ethBackend interface {
+	ArchiveMode() bool
+	BlockChain() *core.BlockChain
+	BloomIndexer() *core.ChainIndexer
+	ChainDb() ethdb.Database
+	Synced() bool
+	TxPool() *txpool.TxPool
 }
 
 type LesServer struct {
 	lesCommons
 
-	ns          *nodestate.NodeStateMachine
 	archiveMode bool // Flag whether the ethereum node runs in archive mode.
 	handler     *serverHandler
-	broadcaster *broadcaster
-	lesTopics   []discv5.Topic
+	peers       *clientPeerSet
+	serverset   *serverSet
+	vfluxServer *vfs.Server
 	privateKey  *ecdsa.PrivateKey
 
 	// Flow control and capacity management
@@ -66,7 +68,7 @@ type LesServer struct {
 	costTracker  *costTracker
 	defParams    flowcontrol.ServerParams
 	servingQueue *servingQueue
-	clientPool   *clientPool
+	clientPool   *vfs.ClientPool
 
 	minCapacity, maxCapacity uint64
 	threadsIdle              int // Request serving threads count when system is idle.
@@ -75,12 +77,10 @@ type LesServer struct {
 	p2pSrv *p2p.Server
 }
 
-func NewLesServer(node *node.Node, e *eth.Ethereum, config *eth.Config) (*LesServer, error) {
-	ns := nodestate.NewNodeStateMachine(nil, nil, mclock.System{}, serverSetup)
-	// Collect les protocol version information supported by local node.
-	lesTopics := make([]discv5.Topic, len(AdvertiseProtocolVersions))
-	for i, pv := range AdvertiseProtocolVersions {
-		lesTopics[i] = lesTopic(e.BlockChain().Genesis().Hash(), pv)
+func NewLesServer(node *node.Node, e ethBackend, config *ethconfig.Config) (*LesServer, error) {
+	lesDb, err := node.OpenDatabase("les.server", 0, 0, "eth/db/lesserver/", false)
+	if err != nil {
+		return nil, err
 	}
 	// Calculate the number of threads used to service the light client
 	// requests based on the user-specified value.
@@ -95,24 +95,28 @@ func NewLesServer(node *node.Node, e *eth.Ethereum, config *eth.Config) (*LesSer
 			chainConfig:      e.BlockChain().Config(),
 			iConfig:          light.DefaultServerIndexerConfig,
 			chainDb:          e.ChainDb(),
+			lesDb:            lesDb,
 			chainReader:      e.BlockChain(),
 			chtIndexer:       light.NewChtIndexer(e.ChainDb(), nil, vars.CHTFrequency, vars.HelperTrieProcessConfirmations, true),
 			bloomTrieIndexer: light.NewBloomTrieIndexer(e.ChainDb(), nil, vars.BloomBitsBlocks, vars.BloomTrieFrequency, true),
 			closeCh:          make(chan struct{}),
 		},
-		ns:           ns,
 		archiveMode:  e.ArchiveMode(),
-		broadcaster:  newBroadcaster(ns),
-		lesTopics:    lesTopics,
+		peers:        newClientPeerSet(),
+		serverset:    newServerSet(),
+		vfluxServer:  vfs.NewServer(time.Millisecond * 10),
 		fcManager:    flowcontrol.NewClientManager(nil, &mclock.System{}),
 		servingQueue: newServingQueue(int64(time.Millisecond*10), float64(config.LightServ)/100),
 		threadsBusy:  config.LightServ/100 + 1,
 		threadsIdle:  threads,
 		p2pSrv:       node.Server(),
 	}
-	srv.handler = newServerHandler(srv, e.BlockChain(), e.ChainDb(), e.TxPool(), e.Synced)
+	issync := e.Synced
+	if config.LightNoSyncServe {
+		issync = func() bool { return true }
+	}
+	srv.handler = newServerHandler(srv, e.BlockChain(), e.ChainDb(), e.TxPool(), issync)
 	srv.costTracker, srv.minCapacity = newCostTracker(e.ChainDb(), config)
-	srv.oracle = srv.setupOracle(node, e.BlockChain().Genesis().Hash(), config)
 
 	// Initialize the bloom trie indexer.
 	e.BloomIndexer().AddChildIndexer(srv.bloomTrieIndexer)
@@ -133,27 +137,16 @@ func NewLesServer(node *node.Node, e *eth.Ethereum, config *eth.Config) (*LesSer
 		srv.maxCapacity = totalRecharge
 	}
 	srv.fcManager.SetCapacityLimits(srv.minCapacity, srv.maxCapacity, srv.minCapacity*2)
-	srv.clientPool = newClientPool(ns, srv.chainDb, srv.minCapacity, defaultConnectedBias, mclock.System{}, srv.dropClient)
-	srv.clientPool.setDefaultFactors(lps.PriceFactors{TimeFactor: 0, CapacityFactor: 1, RequestFactor: 1}, lps.PriceFactors{TimeFactor: 0, CapacityFactor: 1, RequestFactor: 1})
+	srv.clientPool = vfs.NewClientPool(lesDb, srv.minCapacity, defaultConnectedBias, mclock.System{}, issync)
+	srv.clientPool.Start()
+	srv.clientPool.SetDefaultFactors(defaultPosFactors, defaultNegFactors)
+	srv.vfluxServer.Register(srv.clientPool, "les", "Ethereum light client service")
 
-	checkpoint := srv.latestLocalCheckpoint()
-	if !checkpoint.Empty() {
-		log.Info("Loaded latest checkpoint", "section", checkpoint.SectionIndex, "head", checkpoint.SectionHead,
-			"chtroot", checkpoint.CHTRoot, "bloomroot", checkpoint.BloomRoot)
-	}
 	srv.chtIndexer.Start(e.BlockChain())
 
 	node.RegisterProtocols(srv.Protocols())
 	node.RegisterAPIs(srv.APIs())
 	node.RegisterLifecycle(srv)
-
-	// disconnect all peers at nsm shutdown
-	ns.SubscribeField(clientPeerField, func(node *enode.Node, state nodestate.Flags, oldValue, newValue interface{}) {
-		if state.Equals(serverSetup.OfflineFlag()) && oldValue != nil {
-			oldValue.(*clientPeer).Peer.Disconnect(p2p.DiscRequested)
-		}
-	})
-	ns.Start()
 	return srv, nil
 }
 
@@ -161,35 +154,31 @@ func (s *LesServer) APIs() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "les",
-			Version:   "1.0",
-			Service:   NewPrivateLightAPI(&s.lesCommons),
-			Public:    false,
+			Service:   NewLightAPI(&s.lesCommons),
 		},
 		{
 			Namespace: "les",
-			Version:   "1.0",
-			Service:   NewPrivateLightServerAPI(s),
-			Public:    false,
+			Service:   NewLightServerAPI(s),
 		},
 		{
 			Namespace: "debug",
-			Version:   "1.0",
-			Service:   NewPrivateDebugAPI(s),
-			Public:    false,
+			Service:   NewDebugAPI(s),
 		},
 	}
 }
 
 func (s *LesServer) Protocols() []p2p.Protocol {
 	ps := s.makeProtocols(ServerProtocolVersions, s.handler.runPeer, func(id enode.ID) interface{} {
-		if p := s.getClient(id); p != nil {
+		if p := s.peers.peer(id); p != nil {
 			return p.Info()
 		}
 		return nil
 	}, nil)
 	// Add "les" ENR entries.
 	for i := range ps {
-		ps[i].Attributes = []enr.Entry{&lesEntry{}}
+		ps[i].Attributes = []enr.Entry{&lesEntry{
+			VfxVersion: 1,
+		}}
 	}
 	return ps
 }
@@ -197,25 +186,13 @@ func (s *LesServer) Protocols() []p2p.Protocol {
 // Start starts the LES server
 func (s *LesServer) Start() error {
 	s.privateKey = s.p2pSrv.PrivateKey
-	s.broadcaster.setSignerKey(s.privateKey)
+	s.peers.setSignerKey(s.privateKey)
 	s.handler.start()
-
 	s.wg.Add(1)
 	go s.capacityManagement()
-
 	if s.p2pSrv.DiscV5 != nil {
-		for _, topic := range s.lesTopics {
-			topic := topic
-			go func() {
-				logger := log.New("topic", topic)
-				logger.Info("Starting topic registration")
-				defer logger.Info("Terminated topic registration")
-
-				s.p2pSrv.DiscV5.RegisterTopic(topic, s.closeCh)
-			}()
-		}
+		s.p2pSrv.DiscV5.RegisterTalkHandler("vfx", s.vfluxServer.ServeEncoded)
 	}
-
 	return nil
 }
 
@@ -223,15 +200,26 @@ func (s *LesServer) Start() error {
 func (s *LesServer) Stop() error {
 	close(s.closeCh)
 
-	s.clientPool.stop()
-	s.ns.Stop()
+	s.clientPool.Stop()
+	if s.serverset != nil {
+		s.serverset.close()
+	}
+	s.peers.close()
 	s.fcManager.Stop()
 	s.costTracker.stop()
 	s.handler.stop()
 	s.servingQueue.stop()
+	if s.vfluxServer != nil {
+		s.vfluxServer.Stop()
+	}
 
 	// Note, bloom trie indexer is closed by parent bloombits indexer.
-	s.chtIndexer.Close()
+	if s.chtIndexer != nil {
+		s.chtIndexer.Close()
+	}
+	if s.lesDb != nil {
+		s.lesDb.Close()
+	}
 	s.wg.Wait()
 	log.Info("Les server stopped")
 
@@ -253,7 +241,7 @@ func (s *LesServer) capacityManagement() {
 
 	totalCapacityCh := make(chan uint64, 100)
 	totalCapacity := s.fcManager.SubscribeTotalCapacity(totalCapacityCh)
-	s.clientPool.setLimits(s.config.LightPeers, totalCapacity)
+	s.clientPool.SetLimits(uint64(s.config.LightPeers), totalCapacity)
 
 	var (
 		busy         bool
@@ -290,24 +278,9 @@ func (s *LesServer) capacityManagement() {
 				log.Warn("Reduced free peer connections", "from", freePeers, "to", newFreePeers)
 			}
 			freePeers = newFreePeers
-			s.clientPool.setLimits(s.config.LightPeers, totalCapacity)
+			s.clientPool.SetLimits(uint64(s.config.LightPeers), totalCapacity)
 		case <-s.closeCh:
 			return
 		}
-	}
-}
-
-func (s *LesServer) getClient(id enode.ID) *clientPeer {
-	if node := s.ns.GetNode(id); node != nil {
-		if p, ok := s.ns.GetField(node, clientPeerField).(*clientPeer); ok {
-			return p
-		}
-	}
-	return nil
-}
-
-func (s *LesServer) dropClient(id enode.ID) {
-	if p := s.getClient(id); p != nil {
-		p.Peer.Disconnect(p2p.DiscRequested)
 	}
 }

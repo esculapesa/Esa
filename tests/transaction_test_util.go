@@ -45,7 +45,6 @@ type ttFork struct {
 }
 
 func (tt *TransactionTest) Run(config ctypes.ChainConfigurator) error {
-
 	validateTx := func(rlpData hexutil.Bytes, signer types.Signer, isEIP2F bool, isEIP2028F bool) (*common.Address, *common.Hash, error) {
 		tx := new(types.Transaction)
 		if err := rlp.DecodeBytes(rlpData, tx); err != nil {
@@ -56,7 +55,7 @@ func (tt *TransactionTest) Run(config ctypes.ChainConfigurator) error {
 			return nil, nil, err
 		}
 		// Intrinsic gas
-		requiredGas, err := core.IntrinsicGas(tx.Data(), tx.To() == nil, isEIP2F, isEIP2028F)
+		requiredGas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, isEIP2F, isEIP2028F, false)
 		if err != nil {
 			return nil, nil, err
 		}

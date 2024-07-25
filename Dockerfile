@@ -1,13 +1,13 @@
 # Use the official Golang image as the base image
-FROM golang:1.17
+FROM golang:1.21-alpine as builder
 
-# Install necessary tools, libraries and dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libgmp3-dev \
-    jq \
-    libusb-1.0-0 \
-    libusb-1.0-0-dev
+# Install necessary tools, libraries, and dependencies
+RUN apk add --no-cache gcc musl-dev linux-headers git build-base libgmp-dev jq libusb-dev
+
+# Support setting various labels on the final image
+ARG COMMIT=""
+ARG VERSION=""
+ARG BUILDNUM=""
 
 # Clone the Core Geth repository and build it
 RUN git clone https://github.com/esculapesa/Esa.git /root/Esa && \
@@ -27,3 +27,6 @@ EXPOSE 8545 8546 30303 30303/udp
 
 # Use entrypoint.sh as the entrypoint
 ENTRYPOINT ["/root/Esa/entrypoint.sh"]
+
+# Add some metadata labels to help programmatic image consumption
+LABEL commit="$COMMIT" version="$VERSION" buildnum="$BUILDNUM"

@@ -7,7 +7,7 @@
 
 | Entity | Version |
 | --- | --- |
-| Source | <code>1.11.22-unstable/generated-at:2021-01-23T04:50:40-06:00</code> |
+| Source | <code>1.12.14-unstable/generated-at:2023-09-04T08:02:34-06:00</code> |
 | OpenRPC | <code>1.2.6</code> |
 
 ---
@@ -23,7 +23,7 @@ connection at all times, even reconnecting if it is lost.
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -50,11 +50,23 @@ url <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_addPeer", "params": [<url>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_addPeer", "params": [<url>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_addPeer", "params": [<url>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -63,10 +75,11 @@ url <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) AddPeer(url string) (bool, error) {
+func (api *adminAPI) AddPeer(url string) (bool, error) {
 	server := api.node.Server()
 	if server == nil {
 		return false, ErrNodeStopped
@@ -81,7 +94,7 @@ func (api *privateAdminAPI) AddPeer(url string) (bool, error) {
 // connection at all times, even reconnecting if it is lost.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L65" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L57" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -96,7 +109,7 @@ AddTrustedPeer allows a remote node to always connect, even if slots are full
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -123,11 +136,23 @@ url <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_addTrustedPeer", "params": [<url>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_addTrustedPeer", "params": [<url>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_addTrustedPeer", "params": [<url>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -136,10 +161,11 @@ url <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) AddTrustedPeer(url string) (bool, error) {
+func (api *adminAPI) AddTrustedPeer(url string) (bool, error) {
 	server := api.node.Server()
 	if server == nil {
 		return false, ErrNodeStopped
@@ -153,7 +179,7 @@ func (api *privateAdminAPI) AddTrustedPeer(url string) (bool, error) {
 }// AddTrustedPeer allows a remote node to always connect, even if slots are full
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L97" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L89" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -184,11 +210,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_datadir", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_datadir", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_datadir", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -197,15 +235,16 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *publicAdminAPI) Datadir() string {
+func (api *adminAPI) Datadir() string {
 	return api.node.DataDir()
 }// Datadir retrieves the current data directory the node is using.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L311" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L320" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -219,7 +258,7 @@ func (api *publicAdminAPI) Datadir() string {
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -227,7 +266,7 @@ blockNr <code>rpc.BlockNumber</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -299,11 +338,23 @@ blockNr <code>rpc.BlockNumber</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_ecbp1100", "params": [<blockNr>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_ecbp1100", "params": [<blockNr>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_ecbp1100", "params": [<blockNr>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -312,16 +363,17 @@ blockNr <code>rpc.BlockNumber</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateAdminAPI) Ecbp1100(blockNr rpc.BlockNumber) (bool, error) {
+func (api *AdminAPI) Ecbp1100(blockNr rpc.BlockNumber) (bool, error) {
 	i := uint64(blockNr.Int64())
 	err := api.eth.blockchain.Config().SetECBP1100Transition(&i)
-	return api.eth.blockchain.IsArtificialFinalityEnabled() && api.eth.blockchain.Config().IsEnabled(api.eth.blockchain.Config().GetECBP1100Transition, api.eth.blockchain.CurrentBlock().Number()), err
+	return api.eth.blockchain.IsArtificialFinalityEnabled() && api.eth.blockchain.Config().IsEnabled(api.eth.blockchain.Config().GetECBP1100Transition, api.eth.blockchain.CurrentBlock().Number), err
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L267" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_admin.go#L142" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -332,12 +384,12 @@ func (api *PrivateAdminAPI) Ecbp1100(blockNr rpc.BlockNumber) (bool, error) {
 ### admin_exportChain
 
 ExportChain exports the current blockchain into a local file,
-or a range of blocks if first and last are non-nil
+or a range of blocks if first and last are non-nil.
 
 
 #### Params (3)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -354,7 +406,7 @@ first <code>*uint64</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -388,7 +440,7 @@ last <code>*uint64</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -432,11 +484,23 @@ last <code>*uint64</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_exportChain", "params": [<file>, <first>, <last>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_exportChain", "params": [<file>, <first>, <last>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_exportChain", "params": [<file>, <first>, <last>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -445,10 +509,11 @@ last <code>*uint64</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateAdminAPI) ExportChain(file string, first *uint64, last *uint64) (bool, error) {
+func (api *AdminAPI) ExportChain(file string, first *uint64, last *uint64) (bool, error) {
 	if first == nil && last != nil {
 		return false, errors.New("last cannot be specified without first")
 	}
@@ -459,7 +524,7 @@ func (api *PrivateAdminAPI) ExportChain(file string, first *uint64, last *uint64
 	if _, err := os.Stat(file); err == nil {
 		return false, errors.New("location would overwrite an existing file")
 	}
-	out, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	out, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return false, err
 	}
@@ -478,10 +543,10 @@ func (api *PrivateAdminAPI) ExportChain(file string, first *uint64, last *uint64
 	}
 	return true, nil
 }// ExportChain exports the current blockchain into a local file,
-// or a range of blocks if first and last are non-nil
+// or a range of blocks if first and last are non-nil.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L171" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_admin.go#L46" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -496,7 +561,7 @@ ImportChain imports a blockchain from a local file.
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -523,11 +588,23 @@ file <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_importChain", "params": [<file>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_importChain", "params": [<file>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_importChain", "params": [<file>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -536,10 +613,11 @@ file <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
+func (api *AdminAPI) ImportChain(file string) (bool, error) {
 	in, err := os.Open(file)
 	if err != nil {
 		return false, err
@@ -580,7 +658,7 @@ func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
 	return true, nil
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L219" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_admin.go#L94" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -595,7 +673,7 @@ MaxPeers sets the maximum peer limit for the protocol manager and the p2p server
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -603,7 +681,7 @@ n <code>int</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -647,11 +725,23 @@ n <code>int</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_maxPeers", "params": [<n>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_maxPeers", "params": [<n>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_maxPeers", "params": [<n>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -660,24 +750,25 @@ n <code>int</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateAdminAPI) MaxPeers(n int) (bool, error) {
-	api.eth.protocolManager.maxPeers = n
+func (api *AdminAPI) MaxPeers(n int) (bool, error) {
+	api.eth.handler.maxPeers = n
 	api.eth.p2pServer.MaxPeers = n
-	for i := api.eth.protocolManager.peers.Len(); i > n; i = api.eth.protocolManager.peers.Len() {
-		p := api.eth.protocolManager.peers.WorstPeer()
+	for i := api.eth.handler.peers.len(); i > n; i = api.eth.handler.peers.len() {
+		p := api.eth.handler.peers.WorstPeer()
 		if p == nil {
 			break
 		}
-		api.eth.protocolManager.removePeer(p.id)
+		api.eth.handler.removePeer(p.ID())
 	}
 	return true, nil
 }// MaxPeers sets the maximum peer limit for the protocol manager and the p2p server.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L277" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_admin.go#L152" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -704,7 +795,7 @@ _None_
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -834,11 +925,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_nodeInfo", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_nodeInfo", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_nodeInfo", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -847,10 +950,11 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *publicAdminAPI) NodeInfo() (*p2p.NodeInfo, error) {
+func (api *adminAPI) NodeInfo() (*p2p.NodeInfo, error) {
 	server := api.node.Server()
 	if server == nil {
 		return nil, ErrNodeStopped
@@ -860,7 +964,113 @@ func (api *publicAdminAPI) NodeInfo() (*p2p.NodeInfo, error) {
 // protocol granularity.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L301" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L310" target="_">View on GitHub →</a>
+</p>
+</details>
+
+---
+
+
+
+### admin_peerEvents
+
+PeerEvents creates an RPC subscription which receives peer events from the
+node's p2p.Server
+
+
+#### Params (0)
+
+_None_
+
+#### Result
+
+
+
+
+<code>*rpc.Subscription</code> 
+
+  + Required: ✓ Yes
+
+
+=== "Schema"
+
+	``` Schema
+	
+	- description: `Subscription identifier`
+	- title: `subscriptionID`
+	- type: string
+
+
+	```
+
+=== "Raw"
+
+	``` Raw
+	{
+        "description": "Subscription identifier",
+        "title": "subscriptionID",
+        "type": [
+            "string"
+        ]
+    }
+	```
+
+
+
+#### Client Method Invocation Examples
+
+
+
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_subscribe", "params": ["peerEvents"]}'
+	```
+
+
+
+
+<details><summary>Source code</summary>
+<p>
+```go
+func (api *adminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, error) {
+	server := api.node.Server()
+	if server == nil {
+		return nil, ErrNodeStopped
+	}
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return nil, rpc.ErrNotificationsUnsupported
+	}
+	rpcSub := notifier.CreateSubscription()
+	go func() {
+		events := make(chan *p2p.PeerEvent)
+		sub := server.SubscribeEvents(events)
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case event := <-events:
+				notifier.Notify(rpcSub.ID, event)
+			case <-sub.Err():
+				return
+			case <-rpcSub.Err():
+				return
+			case <-notifier.Closed():
+				return
+			}
+		}
+	}()
+	return rpcSub, nil
+}// PeerEvents creates an RPC subscription which receives peer events from the
+// node's p2p.Server
+
+```
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L121" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -886,7 +1096,7 @@ p2pPeerInfo <code>[]*p2p.PeerInfo</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1048,11 +1258,23 @@ p2pPeerInfo <code>[]*p2p.PeerInfo</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_peers", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_peers", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_peers", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -1061,10 +1283,11 @@ p2pPeerInfo <code>[]*p2p.PeerInfo</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *publicAdminAPI) Peers() ([ // Peers retrieves all the information we know about each individual peer at the
+func (api *adminAPI) Peers() ([ // Peers retrieves all the information we know about each individual peer at the
 // protocol granularity.
 ]*p2p.PeerInfo, error) {
 	server := api.node.Server()
@@ -1074,7 +1297,7 @@ func (api *publicAdminAPI) Peers() ([ // Peers retrieves all the information we 
 	return server.PeersInfo(), nil
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L291" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L300" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1089,7 +1312,7 @@ RemovePeer disconnects from a remote node if the connection exists
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1116,11 +1339,23 @@ url <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_removePeer", "params": [<url>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_removePeer", "params": [<url>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_removePeer", "params": [<url>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1129,10 +1364,11 @@ url <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) RemovePeer(url string) (bool, error) {
+func (api *adminAPI) RemovePeer(url string) (bool, error) {
 	server := api.node.Server()
 	if server == nil {
 		return false, ErrNodeStopped
@@ -1146,7 +1382,7 @@ func (api *privateAdminAPI) RemovePeer(url string) (bool, error) {
 }// RemovePeer disconnects from a remote node if the connection exists
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L81" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L73" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1162,7 +1398,7 @@ does not disconnect it automatically.
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1189,11 +1425,23 @@ url <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_removeTrustedPeer", "params": [<url>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_removeTrustedPeer", "params": [<url>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_removeTrustedPeer", "params": [<url>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1202,10 +1450,11 @@ url <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
+func (api *adminAPI) RemoveTrustedPeer(url string) (bool, error) {
 	server := api.node.Server()
 	if server == nil {
 		return false, ErrNodeStopped
@@ -1220,7 +1469,7 @@ func (api *privateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
 // does not disconnect it automatically.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L113" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L105" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1228,14 +1477,14 @@ func (api *privateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
 
 
 
-### admin_startRPC
+### admin_startHTTP
 
-StartRPC starts the HTTP RPC API server.
+StartHTTP starts the HTTP RPC API server.
 
 
 #### Params (5)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1252,7 +1501,7 @@ port <code>*int</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1323,23 +1572,36 @@ vhosts <code>*string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_startRPC", "params": [<host>, <port>, <cors>, <apis>, <vhosts>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_startHTTP", "params": [<host>, <port>, <cors>, <apis>, <vhosts>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_startHTTP", "params": [<host>, <port>, <cors>, <apis>, <vhosts>]}'
+	```
+
 
 === "Javascript Console"
 
 	``` js
-	admin.startRPC(host,port,cors,apis,vhosts);
+	admin.startHTTP(host,port,cors,apis,vhosts);
 	```
+
 
 
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+func (api *adminAPI) StartHTTP(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 	if host == nil {
@@ -1352,10 +1614,10 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 	if port == nil {
 		port = &api.node.config.HTTPPort
 	}
-	config := httpConfig{CorsAllowedOrigins: api.node.config.HTTPCors, Vhosts: api.node.config.HTTPVirtualHosts, Modules: api.node.config.HTTPModules}
+	config := httpConfig{CorsAllowedOrigins: api.node.config.HTTPCors, Vhosts: api.node.config.HTTPVirtualHosts, Modules: api.node.config.HTTPModules, rpcEndpointConfig: rpcEndpointConfig{batchItemLimit: api.node.config.BatchRequestLimit, batchResponseSizeLimit: api.node.config.BatchResponseMaxSize}}
 	if cors != nil {
 		config.CorsAllowedOrigins = nil
-		for _, origin := // StartRPC starts the HTTP RPC API server.
+		for _, origin := // StartHTTP starts the HTTP RPC API server.
 		range strings.Split(*cors, ",") {
 			config.CorsAllowedOrigins = append(config.CorsAllowedOrigins, strings.TrimSpace(origin))
 		}
@@ -1384,7 +1646,7 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 	return true, nil
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L166" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L158" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1392,14 +1654,15 @@ func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis
 
 
 
-### admin_startWS
+### admin_startRPC
 
-StartWS starts the websocket RPC API server.
+StartRPC starts the HTTP RPC API server.
+Deprecated: use StartHTTP instead.
 
 
-#### Params (4)
+#### Params (5)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1416,7 +1679,146 @@ port <code>*int</code>
 
   + Required: ✓ Yes
 
- 
+
+=== "Schema"
+
+	``` Schema
+	
+	- description: `Hex representation of the integer`
+	- pattern: `^0x[a-fA-F0-9]+$`
+	- title: `integer`
+	- type: string
+
+
+	```
+
+=== "Raw"
+
+	``` Raw
+	{
+        "description": "Hex representation of the integer",
+        "pattern": "^0x[a-fA-F0-9]+$",
+        "title": "integer",
+        "type": [
+            "string"
+        ]
+    }
+	```
+
+
+
+
+__3:__ 
+cors <code>*string</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+
+__4:__ 
+apis <code>*string</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+
+__5:__ 
+vhosts <code>*string</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+
+
+#### Result
+
+
+
+
+<code>bool</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+#### Client Method Invocation Examples
+
+
+=== "Shell HTTP"
+
+	``` shell
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_startRPC", "params": [<host>, <port>, <cors>, <apis>, <vhosts>]}'
+	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_startRPC", "params": [<host>, <port>, <cors>, <apis>, <vhosts>]}'
+	```
+
+
+=== "Javascript Console"
+
+	``` js
+	admin.startRPC(host,port,cors,apis,vhosts);
+	```
+
+
+
+<details><summary>Source code</summary>
+<p>
+```go
+func (api *adminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+	log.Warn("Deprecation warning", "method", "admin.StartRPC", "use-instead", "admin.StartHTTP")
+	return api.StartHTTP(host, port, cors, apis, vhosts)
+}// StartRPC starts the HTTP RPC API server.
+// Deprecated: use StartHTTP instead.
+
+```
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L217" target="_">View on GitHub →</a>
+</p>
+</details>
+
+---
+
+
+
+### admin_startWS
+
+StartWS starts the websocket RPC API server.
+
+
+#### Params (4)
+
+Parameters must be given _by position_.
+
+
+__1:__ 
+host <code>*string</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+
+__2:__ 
+port <code>*int</code> 
+
+  + Required: ✓ Yes
+
+
 === "Schema"
 
 	``` Schema
@@ -1478,11 +1880,23 @@ apis <code>*string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_startWS", "params": [<host>, <port>, <allowedOrigins>, <apis>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_startWS", "params": [<host>, <port>, <allowedOrigins>, <apis>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_startWS", "params": [<host>, <port>, <allowedOrigins>, <apis>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1491,10 +1905,11 @@ apis <code>*string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *string, apis *string) (bool, error) {
+func (api *adminAPI) StartWS(host *string, port *int, allowedOrigins *string, apis *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 	if host == nil {
@@ -1507,7 +1922,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	if port == nil {
 		port = &api.node.config.WSPort
 	}
-	config := wsConfig{Modules: api.node.config.WSModules, Origins: api.node.config.WSOrigins}
+	config := wsConfig{Modules: api.node.config.WSModules, Origins: api.node.config.WSOrigins, rpcEndpointConfig: rpcEndpointConfig{batchItemLimit: api.node.config.BatchRequestLimit, batchResponseSizeLimit: api.node.config.BatchResponseMaxSize}}
 	if apis != nil {
 		config.Modules = nil
 		for _, m := // StartWS starts the websocket RPC API server.
@@ -1521,11 +1936,12 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 			config.Origins = append(config.Origins, strings.TrimSpace(origin))
 		}
 	}
-	server := api.node.wsServerForPort(*port)
+	server := api.node.wsServerForPort(*port, false)
 	if err := server.setListenAddr(*host, *port); err != nil {
 		return false, err
 	}
-	if err := server.enableWS(api.node.rpcAPIs, config); err != nil {
+	openApis, _ := api.node.getAPIs()
+	if err := server.enableWS(openApis, config); err != nil {
 		return false, err
 	}
 	if err := server.start(); err != nil {
@@ -1535,7 +1951,7 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 	return true, nil
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L226" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L236" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1543,9 +1959,9 @@ func (api *privateAdminAPI) StartWS(host *string, port *int, allowedOrigins *str
 
 
 
-### admin_stopRPC
+### admin_stopHTTP
 
-StopRPC shuts down the HTTP server.
+StopHTTP shuts down the HTTP server.
 
 
 #### Params (0)
@@ -1566,11 +1982,90 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_stopRPC", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_stopHTTP", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_stopHTTP", "params": []}'
+	```
+
+
+=== "Javascript Console"
+
+	``` js
+	admin.stopHTTP();
+	```
+
+
+
+<details><summary>Source code</summary>
+<p>
+```go
+func (api *adminAPI) StopHTTP() (bool, error) {
+	api.node.http.stop()
+	return true, nil
+}// StopHTTP shuts down the HTTP server.
+
+```
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L223" target="_">View on GitHub →</a>
+</p>
+</details>
+
+---
+
+
+
+### admin_stopRPC
+
+StopRPC shuts down the HTTP server.
+Deprecated: use StopHTTP instead.
+
+
+#### Params (0)
+
+_None_
+
+#### Result
+
+
+
+
+<code>bool</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+#### Client Method Invocation Examples
+
+
+=== "Shell HTTP"
+
+	``` shell
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_stopRPC", "params": []}'
+	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_stopRPC", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -1579,16 +2074,18 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) StopRPC() (bool, error) {
-	api.node.http.stop()
-	return true, nil
+func (api *adminAPI) StopRPC() (bool, error) {
+	log.Warn("Deprecation warning", "method", "admin.StopRPC", "use-instead", "admin.StopHTTP")
+	return api.StopHTTP()
 }// StopRPC shuts down the HTTP server.
+// Deprecated: use StopHTTP instead.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L220" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L230" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1619,11 +2116,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "admin_stopWS", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "admin_stopWS", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "admin_stopWS", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -1632,17 +2141,18 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *privateAdminAPI) StopWS() (bool, error) {
+func (api *adminAPI) StopWS() (bool, error) {
 	api.node.http.stopWS()
 	api.node.ws.stop()
 	return true, nil
 }// StopWS terminates all WebSocket servers.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/node/api.go#L277" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/node/api.go#L292" target="_">View on GitHub →</a>
 </p>
 </details>
 

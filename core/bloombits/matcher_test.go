@@ -30,6 +30,7 @@ const testSectionSize = 4096
 
 // Tests that wildcard filter rules (nil) can be specified and are handled well.
 func TestMatcherWildcards(t *testing.T) {
+	t.Parallel()
 	matcher := NewMatcher(testSectionSize, [][][]byte{
 		{common.Address{}.Bytes(), common.Address{0x01}.Bytes()}, // Default address is not a wildcard
 		{common.Hash{}.Bytes(), common.Hash{0x01}.Bytes()},       // Default hash is not a wildcard
@@ -56,6 +57,7 @@ func TestMatcherWildcards(t *testing.T) {
 
 // Tests the matcher pipeline on a single continuous workflow without interrupts.
 func TestMatcherContinuous(t *testing.T) {
+	t.Parallel()
 	testMatcherDiffBatches(t, [][]bloomIndexes{{{10, 20, 30}}}, 0, 100000, false, 75)
 	testMatcherDiffBatches(t, [][]bloomIndexes{{{32, 3125, 100}}, {{40, 50, 10}}}, 0, 100000, false, 81)
 	testMatcherDiffBatches(t, [][]bloomIndexes{{{4, 8, 11}, {7, 8, 17}}, {{9, 9, 12}, {15, 20, 13}}, {{18, 15, 15}, {12, 10, 4}}}, 0, 10000, false, 36)
@@ -64,6 +66,7 @@ func TestMatcherContinuous(t *testing.T) {
 // Tests the matcher pipeline on a constantly interrupted and resumed work pattern
 // with the aim of ensuring data items are requested only once.
 func TestMatcherIntermittent(t *testing.T) {
+	t.Parallel()
 	testMatcherDiffBatches(t, [][]bloomIndexes{{{10, 20, 30}}}, 0, 100000, true, 75)
 	testMatcherDiffBatches(t, [][]bloomIndexes{{{32, 3125, 100}}, {{40, 50, 10}}}, 0, 100000, true, 81)
 	testMatcherDiffBatches(t, [][]bloomIndexes{{{4, 8, 11}, {7, 8, 17}}, {{9, 9, 12}, {15, 20, 13}}, {{18, 15, 15}, {12, 10, 4}}}, 0, 10000, true, 36)
@@ -71,6 +74,7 @@ func TestMatcherIntermittent(t *testing.T) {
 
 // Tests the matcher pipeline on random input to hopefully catch anomalies.
 func TestMatcherRandom(t *testing.T) {
+	t.Parallel()
 	for i := 0; i < 10; i++ {
 		testMatcherBothModes(t, makeRandomIndexes([]int{1}, 50), 0, 10000, 0)
 		testMatcherBothModes(t, makeRandomIndexes([]int{3}, 50), 0, 10000, 0)
@@ -81,9 +85,10 @@ func TestMatcherRandom(t *testing.T) {
 }
 
 // Tests that the matcher can properly find matches if the starting block is
-// shifter from a multiple of 8. This is needed to cover an optimisation with
+// shifted from a multiple of 8. This is needed to cover an optimisation with
 // bitset matching https://github.com/ethereum/go-ethereum/issues/15309.
 func TestMatcherShifted(t *testing.T) {
+	t.Parallel()
 	// Block 0 always matches in the tests, skip ahead of first 8 blocks with the
 	// start to get a potential zero byte in the matcher bitset.
 
@@ -97,10 +102,11 @@ func TestMatcherShifted(t *testing.T) {
 
 // Tests that matching on everything doesn't crash (special case internally).
 func TestWildcardMatcher(t *testing.T) {
+	t.Parallel()
 	testMatcherBothModes(t, nil, 0, 10000, 0)
 }
 
-// makeRandomIndexes generates a random filter system, composed on multiple filter
+// makeRandomIndexes generates a random filter system, composed of multiple filter
 // criteria, each having one bloom list component for the address and arbitrarily
 // many topic bloom list components.
 func makeRandomIndexes(lengths []int, max int) [][]bloomIndexes {
@@ -118,13 +124,13 @@ func makeRandomIndexes(lengths []int, max int) [][]bloomIndexes {
 
 // testMatcherDiffBatches runs the given matches test in single-delivery and also
 // in batches delivery mode, verifying that all kinds of deliveries are handled
-// correctly withn.
+// correctly within.
 func testMatcherDiffBatches(t *testing.T, filter [][]bloomIndexes, start, blocks uint64, intermittent bool, retrievals uint32) {
 	singleton := testMatcher(t, filter, start, blocks, intermittent, retrievals, 1)
 	batched := testMatcher(t, filter, start, blocks, intermittent, retrievals, 16)
 
 	if singleton != batched {
-		t.Errorf("filter = %v blocks = %v intermittent = %v: request count mismatch, %v in signleton vs. %v in batched mode", filter, blocks, intermittent, singleton, batched)
+		t.Errorf("filter = %v blocks = %v intermittent = %v: request count mismatch, %v in singleton vs. %v in batched mode", filter, blocks, intermittent, singleton, batched)
 	}
 }
 
@@ -154,7 +160,7 @@ func testMatcher(t *testing.T, filter [][]bloomIndexes, start, blocks uint64, in
 		}
 	}
 	// Track the number of retrieval requests made
-	var requested uint32
+	var requested atomic.Uint32
 
 	// Start the matching session for the filter and the retriever goroutines
 	quit := make(chan struct{})
@@ -202,15 +208,15 @@ func testMatcher(t *testing.T, filter [][]bloomIndexes, start, blocks uint64, in
 	session.Close()
 	close(quit)
 
-	if retrievals != 0 && requested != retrievals {
-		t.Errorf("filter = %v  blocks = %v  intermittent = %v: request count mismatch, have #%v, want #%v", filter, blocks, intermittent, requested, retrievals)
+	if retrievals != 0 && requested.Load() != retrievals {
+		t.Errorf("filter = %v  blocks = %v  intermittent = %v: request count mismatch, have #%v, want #%v", filter, blocks, intermittent, requested.Load(), retrievals)
 	}
-	return requested
+	return requested.Load()
 }
 
 // startRetrievers starts a batch of goroutines listening for section requests
 // and serving them.
-func startRetrievers(session *MatcherSession, quit chan struct{}, retrievals *uint32, batch int) {
+func startRetrievers(session *MatcherSession, quit chan struct{}, retrievals *atomic.Uint32, batch int) {
 	requests := make(chan chan *Retrieval)
 
 	for i := 0; i < 10; i++ {
@@ -232,7 +238,7 @@ func startRetrievers(session *MatcherSession, quit chan struct{}, retrievals *ui
 					for i, section := range task.Sections {
 						if rand.Int()%4 != 0 { // Handle occasional missing deliveries
 							task.Bitsets[i] = generateBitset(task.Bit, section)
-							atomic.AddUint32(retrievals, 1)
+							retrievals.Add(1)
 						}
 					}
 					request <- task

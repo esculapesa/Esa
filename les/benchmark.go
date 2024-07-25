@@ -17,8 +17,9 @@
 package les
 
 import (
+	crand "crypto/rand"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -58,7 +59,7 @@ func (b *benchmarkBlockHeaders) init(h *serverHandler, count int) error {
 	b.offset = 0
 	b.randMax = h.blockchain.CurrentHeader().Number.Int64() + 1 - d
 	if b.randMax < 0 {
-		return fmt.Errorf("chain is too short")
+		return errors.New("chain is too short")
 	}
 	if b.reverse {
 		b.offset = d
@@ -75,9 +76,8 @@ func (b *benchmarkBlockHeaders) init(h *serverHandler, count int) error {
 func (b *benchmarkBlockHeaders) request(peer *serverPeer, index int) error {
 	if b.byHash {
 		return peer.requestHeadersByHash(0, b.hashes[index], b.amount, b.skip, b.reverse)
-	} else {
-		return peer.requestHeadersByNumber(0, uint64(b.offset+rand.Int63n(b.randMax)), b.amount, b.skip, b.reverse)
 	}
+	return peer.requestHeadersByNumber(0, uint64(b.offset+rand.Int63n(b.randMax)), b.amount, b.skip, b.reverse)
 }
 
 // benchmarkBodiesOrReceipts implements requestBenchmark
@@ -98,9 +98,8 @@ func (b *benchmarkBodiesOrReceipts) init(h *serverHandler, count int) error {
 func (b *benchmarkBodiesOrReceipts) request(peer *serverPeer, index int) error {
 	if b.receipts {
 		return peer.requestReceipts(0, []common.Hash{b.hashes[index]})
-	} else {
-		return peer.requestBodies(0, []common.Hash{b.hashes[index]})
 	}
+	return peer.requestBodies(0, []common.Hash{b.hashes[index]})
 }
 
 // benchmarkProofsOrCode implements requestBenchmark
@@ -116,12 +115,11 @@ func (b *benchmarkProofsOrCode) init(h *serverHandler, count int) error {
 
 func (b *benchmarkProofsOrCode) request(peer *serverPeer, index int) error {
 	key := make([]byte, 32)
-	rand.Read(key)
+	crand.Read(key)
 	if b.code {
-		return peer.requestCode(0, []CodeReq{{BHash: b.headHash, AccKey: key}})
-	} else {
-		return peer.requestProofs(0, []ProofReq{{BHash: b.headHash, Key: key}})
+		return peer.requestCode(0, []CodeReq{{BHash: b.headHash, AccountAddress: key}})
 	}
+	return peer.requestProofs(0, []ProofReq{{BHash: b.headHash, Key: key}})
 }
 
 // benchmarkHelperTrie implements requestBenchmark
@@ -139,7 +137,7 @@ func (b *benchmarkHelperTrie) init(h *serverHandler, count int) error {
 		b.headNum = b.sectionCount*vars.CHTFrequency - 1
 	}
 	if b.sectionCount == 0 {
-		return fmt.Errorf("no processed sections available")
+		return errors.New("no processed sections available")
 	}
 	return nil
 }
@@ -159,7 +157,7 @@ func (b *benchmarkHelperTrie) request(peer *serverPeer, index int) error {
 		for i := range reqs {
 			key := make([]byte, 8)
 			binary.BigEndian.PutUint64(key[:], uint64(rand.Int63n(int64(b.headNum))))
-			reqs[i] = HelperTrieReq{Type: htCanonical, TrieIdx: b.sectionCount - 1, Key: key, AuxReq: auxHeader}
+			reqs[i] = HelperTrieReq{Type: htCanonical, TrieIdx: b.sectionCount - 1, Key: key, AuxReq: htAuxHeader}
 		}
 	}
 
@@ -174,12 +172,12 @@ type benchmarkTxSend struct {
 func (b *benchmarkTxSend) init(h *serverHandler, count int) error {
 	key, _ := crypto.GenerateKey()
 	addr := crypto.PubkeyToAddress(key.PublicKey)
-	signer := types.NewEIP155Signer(big.NewInt(18))
+	signer := types.LatestSigner(h.server.chainConfig)
 	b.txs = make(types.Transactions, count)
 
 	for i := range b.txs {
 		data := make([]byte, txSizeCostLimit)
-		rand.Read(data)
+		crand.Read(data)
 		tx, err := types.SignTx(types.NewTransaction(0, addr, new(big.Int), 0, new(big.Int), data), signer, key)
 		if err != nil {
 			panic(err)
@@ -203,7 +201,7 @@ func (b *benchmarkTxStatus) init(h *serverHandler, count int) error {
 
 func (b *benchmarkTxStatus) request(peer *serverPeer, index int) error {
 	var hash common.Hash
-	rand.Read(hash[:])
+	crand.Read(hash[:])
 	return peer.requestTxStatus(0, []common.Hash{hash})
 }
 
@@ -281,7 +279,7 @@ func (h *serverHandler) measure(setup *benchmarkSetup, count int) error {
 	clientMeteredPipe := &meteredPipe{rw: clientPipe}
 	serverMeteredPipe := &meteredPipe{rw: serverPipe}
 	var id enode.ID
-	rand.Read(id[:])
+	crand.Read(id[:])
 
 	peer1 := newServerPeer(lpv2, NetworkId, false, p2p.NewPeer(id, "client", nil), clientMeteredPipe)
 	peer2 := newClientPeer(lpv2, NetworkId, p2p.NewPeer(id, "server", nil), serverMeteredPipe)
@@ -340,7 +338,7 @@ func (h *serverHandler) measure(setup *benchmarkSetup, count int) error {
 	case <-h.closeCh:
 		clientPipe.Close()
 		serverPipe.Close()
-		return fmt.Errorf("Benchmark cancelled")
+		return errors.New("Benchmark cancelled")
 	}
 
 	setup.totalTime += time.Duration(mclock.Now() - start)

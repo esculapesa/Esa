@@ -7,7 +7,7 @@
 
 | Entity | Version |
 | --- | --- |
-| Source | <code>1.11.22-unstable/generated-at:2021-01-23T04:50:40-06:00</code> |
+| Source | <code>1.12.14-unstable/generated-at:2023-09-04T08:02:34-06:00</code> |
 | OpenRPC | <code>1.2.6</code> |
 
 ---
@@ -38,11 +38,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "net_listening", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "net_listening", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "net_listening", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -51,15 +63,16 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PublicNetAPI) Listening() bool {
+func (s *NetAPI) Listening() bool {
 	return true
 }// Listening returns an indication if the node is listening for network connections.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L2033" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L2313" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -85,7 +98,7 @@ _None_
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -115,11 +128,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "net_peerCount", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "net_peerCount", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "net_peerCount", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -128,15 +153,16 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PublicNetAPI) PeerCount() hexutil.Uint {
+func (s *NetAPI) PeerCount() hexutil.Uint {
 	return hexutil.Uint(s.net.PeerCount())
 }// PeerCount returns the number of connected peers
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L2037" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L2317" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -167,11 +193,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "net_version", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "net_version", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "net_version", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -180,15 +218,16 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PublicNetAPI) Version() string {
+func (s *NetAPI) Version() string {
 	return fmt.Sprintf("%d", s.networkVersion)
 }// Version returns the current ethereum protocol version.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L2042" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L2322" target="_">View on GitHub →</a>
 </p>
 </details>
 

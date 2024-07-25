@@ -32,6 +32,9 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+//go:generate go run github.com/fjl/gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
+//go:generate go run github.com/fjl/gencodec -type GenesisAccount -field-override genesisAccountMarshaling -out gen_genesis_account.go
+
 var ErrGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block. It also defines hard
@@ -49,9 +52,209 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
-	Number     uint64      `json:"number"`
-	GasUsed    uint64      `json:"gasUsed"`
-	ParentHash common.Hash `json:"parentHash"`
+	Number        uint64      `json:"number"`
+	GasUsed       uint64      `json:"gasUsed"`
+	ParentHash    common.Hash `json:"parentHash"`
+	BaseFee       *big.Int    `json:"baseFeePerGas,omitempty"` // EIP-1559
+	ExcessBlobGas *uint64     `json:"excessBlobGas,omitempty"` // EIP-4844
+	BlobGasUsed   *uint64     `json:"blobGasUsed,omitempty"`   // EIP-4844
+}
+
+func (g *Genesis) GetElasticityMultiplier() uint64 {
+	return g.Config.GetElasticityMultiplier()
+}
+
+func (g *Genesis) SetElasticityMultiplier(n uint64) error {
+	return g.Config.SetElasticityMultiplier(n)
+}
+
+func (g *Genesis) GetBaseFeeChangeDenominator() uint64 {
+	return g.Config.GetBaseFeeChangeDenominator()
+}
+
+func (g *Genesis) SetBaseFeeChangeDenominator(n uint64) error {
+	return g.Config.SetBaseFeeChangeDenominator(n)
+}
+
+func (g *Genesis) GetEIP3651TransitionTime() *uint64 {
+	return g.Config.GetEIP3651TransitionTime()
+}
+
+func (g *Genesis) SetEIP3651TransitionTime(n *uint64) error {
+	return g.Config.SetEIP3651TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP3855TransitionTime() *uint64 {
+	return g.Config.GetEIP3855TransitionTime()
+}
+
+func (g *Genesis) SetEIP3855TransitionTime(n *uint64) error {
+	return g.Config.SetEIP3855TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP3860TransitionTime() *uint64 {
+	return g.Config.GetEIP3860TransitionTime()
+}
+
+func (g *Genesis) SetEIP3860TransitionTime(n *uint64) error {
+	return g.Config.SetEIP3860TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP4895TransitionTime() *uint64 {
+	return g.Config.GetEIP4895TransitionTime()
+}
+
+func (g *Genesis) SetEIP4895TransitionTime(n *uint64) error {
+	return g.Config.SetEIP4895TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP6049TransitionTime() *uint64 {
+	return g.Config.GetEIP6049TransitionTime()
+}
+
+func (g *Genesis) SetEIP6049TransitionTime(n *uint64) error {
+	return g.Config.SetEIP6049TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP3651Transition() *uint64 {
+	return g.Config.GetEIP3651Transition()
+}
+
+func (g *Genesis) SetEIP3651Transition(n *uint64) error {
+	return g.Config.SetEIP3651Transition(n)
+}
+
+func (g *Genesis) GetEIP3855Transition() *uint64 {
+	return g.Config.GetEIP3855Transition()
+}
+
+func (g *Genesis) SetEIP3855Transition(n *uint64) error {
+	return g.Config.SetEIP3855Transition(n)
+}
+
+func (g *Genesis) GetEIP3860Transition() *uint64 {
+	return g.Config.GetEIP3860Transition()
+}
+
+func (g *Genesis) SetEIP3860Transition(n *uint64) error {
+	return g.Config.SetEIP3860Transition(n)
+}
+
+func (g *Genesis) GetEIP4895Transition() *uint64 {
+	return g.Config.GetEIP4895Transition()
+}
+
+func (g *Genesis) SetEIP4895Transition(n *uint64) error {
+	return g.Config.SetEIP4895Transition(n)
+}
+
+func (g *Genesis) GetEIP6049Transition() *uint64 {
+	return g.Config.GetEIP6049Transition()
+}
+
+func (g *Genesis) SetEIP6049Transition(n *uint64) error {
+	return g.Config.SetEIP6049Transition(n)
+}
+
+func (g *Genesis) GetEIP4844TransitionTime() *uint64 {
+	return g.Config.GetEIP4844TransitionTime()
+}
+
+func (g *Genesis) SetEIP4844TransitionTime(n *uint64) error {
+	return g.Config.SetEIP4844TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP7516TransitionTime() *uint64 {
+	return g.Config.GetEIP7516TransitionTime()
+}
+
+func (g *Genesis) SetEIP7516TransitionTime(n *uint64) error {
+	return g.Config.SetEIP7516TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP1153TransitionTime() *uint64 {
+	return g.Config.GetEIP1153TransitionTime()
+}
+
+func (g *Genesis) SetEIP1153TransitionTime(n *uint64) error {
+	return g.Config.SetEIP1153TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP5656TransitionTime() *uint64 {
+	return g.Config.GetEIP5656TransitionTime()
+}
+
+func (g *Genesis) SetEIP5656TransitionTime(n *uint64) error {
+	return g.Config.SetEIP5656TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP6780TransitionTime() *uint64 {
+	return g.Config.GetEIP6780TransitionTime()
+}
+
+func (g *Genesis) SetEIP6780TransitionTime(n *uint64) error {
+	return g.Config.SetEIP6780TransitionTime(n)
+}
+
+func (g *Genesis) GetEIP4788TransitionTime() *uint64 {
+	return g.Config.GetEIP4788TransitionTime()
+}
+
+func (g *Genesis) SetEIP4788TransitionTime(n *uint64) error {
+	return g.Config.SetEIP4788TransitionTime(n)
+}
+
+// Cancun by block number
+func (g *Genesis) GetEIP4844Transition() *uint64 {
+	return g.Config.GetEIP4844Transition()
+}
+
+func (g *Genesis) SetEIP4844Transition(n *uint64) error {
+	return g.Config.SetEIP4844Transition(n)
+}
+
+func (g *Genesis) GetEIP7516Transition() *uint64 {
+	return g.Config.GetEIP7516Transition()
+}
+
+func (g *Genesis) SetEIP7516Transition(n *uint64) error {
+	return g.Config.SetEIP7516Transition(n)
+}
+
+func (g *Genesis) GetEIP1153Transition() *uint64 {
+	return g.Config.GetEIP1153Transition()
+}
+
+func (g *Genesis) SetEIP1153Transition(n *uint64) error {
+	return g.Config.SetEIP1153Transition(n)
+}
+
+func (g *Genesis) GetEIP5656Transition() *uint64 {
+	return g.Config.GetEIP5656Transition()
+}
+
+func (g *Genesis) SetEIP5656Transition(n *uint64) error {
+	return g.Config.SetEIP5656Transition(n)
+}
+
+func (g *Genesis) GetEIP6780Transition() *uint64 {
+	return g.Config.GetEIP6780Transition()
+}
+
+func (g *Genesis) SetEIP6780Transition(n *uint64) error {
+	return g.Config.SetEIP6780Transition(n)
+}
+
+func (g *Genesis) GetEIP4788Transition() *uint64 {
+	return g.Config.GetEIP4788Transition()
+}
+
+func (g *Genesis) SetEIP4788Transition(n *uint64) error {
+	return g.Config.SetEIP4788Transition(n)
+}
+
+func (g *Genesis) IsEnabledByTime(fn func() *uint64, n *uint64) bool {
+	return g.Config.IsEnabledByTime(fn, n)
 }
 
 func (g *Genesis) ForEachAccount(fn func(address common.Address, bal *big.Int, nonce uint64, code []byte, storage map[common.Hash]common.Hash) error) error {
@@ -108,14 +311,17 @@ type GenesisAccount struct {
 
 // field type overrides for gencodec
 type genesisSpecMarshaling struct {
-	Nonce      math.HexOrDecimal64
-	Timestamp  math.HexOrDecimal64
-	ExtraData  hexutil.Bytes
-	GasLimit   math.HexOrDecimal64
-	GasUsed    math.HexOrDecimal64
-	Number     math.HexOrDecimal64
-	Difficulty *math.HexOrDecimal256
-	Alloc      map[common.UnprefixedAddress]GenesisAccount
+	Nonce         math.HexOrDecimal64
+	Timestamp     math.HexOrDecimal64
+	ExtraData     hexutil.Bytes
+	GasLimit      math.HexOrDecimal64
+	GasUsed       math.HexOrDecimal64
+	Number        math.HexOrDecimal64
+	Difficulty    *math.HexOrDecimal256
+	Alloc         map[common.UnprefixedAddress]GenesisAccount
+	BaseFee       *math.HexOrDecimal256
+	ExcessBlobGas *math.HexOrDecimal64
+	BlobGasUsed   *math.HexOrDecimal64
 }
 
 type genesisAccountMarshaling struct {
@@ -158,13 +364,34 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 func DecodePreAlloc(data string) GenesisAlloc {
-	var p []struct{ Addr, Balance *big.Int }
+	var p []struct {
+		Addr    *big.Int
+		Balance *big.Int
+		Misc    *struct {
+			Nonce uint64
+			Code  []byte
+			Slots []struct {
+				Key common.Hash
+				Val common.Hash
+			}
+		} `rlp:"optional"`
+	}
 	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
 		panic(err)
 	}
 	ga := make(GenesisAlloc, len(p))
 	for _, account := range p {
-		ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
+		acc := GenesisAccount{Balance: account.Balance}
+		if account.Misc != nil {
+			acc.Nonce = account.Misc.Nonce
+			acc.Code = account.Misc.Code
+
+			acc.Storage = make(map[common.Hash]common.Hash)
+			for _, slot := range account.Misc.Slots {
+				acc.Storage[slot.Key] = slot.Val
+			}
+		}
+		ga[common.BigToAddress(account.Addr)] = acc
 	}
 	return ga
 }
@@ -302,6 +529,14 @@ func (g *Genesis) GetChainID() *big.Int {
 
 func (g *Genesis) SetChainID(i *big.Int) error {
 	return g.Config.SetChainID(i)
+}
+
+func (g *Genesis) GetSupportedProtocolVersions() []uint {
+	return g.Config.GetSupportedProtocolVersions()
+}
+
+func (g *Genesis) SetSupportedProtocolVersions(p []uint) error {
+	return g.Config.SetSupportedProtocolVersions(p)
 }
 
 func (g *Genesis) GetMaxCodeSize() *uint64 {
@@ -560,12 +795,92 @@ func (g *Genesis) SetEIP2929Transition(n *uint64) error {
 	return g.Config.SetEIP2929Transition(n)
 }
 
+func (g *Genesis) GetEIP2930Transition() *uint64 {
+	return g.Config.GetEIP2930Transition()
+}
+
+func (g *Genesis) SetEIP2930Transition(n *uint64) error {
+	return g.Config.SetEIP2930Transition(n)
+}
+
+func (g *Genesis) GetEIP1559Transition() *uint64 {
+	return g.Config.GetEIP1559Transition()
+}
+
+func (g *Genesis) SetEIP1559Transition(n *uint64) error {
+	return g.Config.SetEIP1559Transition(n)
+}
+
+func (g *Genesis) GetEIP3541Transition() *uint64 {
+	return g.Config.GetEIP3541Transition()
+}
+
+func (g *Genesis) SetEIP3541Transition(n *uint64) error {
+	return g.Config.SetEIP3541Transition(n)
+}
+
+func (g *Genesis) GetEIP3529Transition() *uint64 {
+	return g.Config.GetEIP3529Transition()
+}
+
+func (g *Genesis) SetEIP3529Transition(n *uint64) error {
+	return g.Config.SetEIP3529Transition(n)
+}
+
+func (g *Genesis) GetEIP3198Transition() *uint64 {
+	return g.Config.GetEIP3198Transition()
+}
+
+func (g *Genesis) SetEIP3198Transition(n *uint64) error {
+	return g.Config.SetEIP3198Transition(n)
+}
+
+func (g *Genesis) GetEIP2565Transition() *uint64 {
+	return g.Config.GetEIP2565Transition()
+}
+
+func (g *Genesis) SetEIP2565Transition(n *uint64) error {
+	return g.Config.SetEIP2565Transition(n)
+}
+
+func (g *Genesis) GetEIP2718Transition() *uint64 {
+	return g.Config.GetEIP2718Transition()
+}
+
+func (g *Genesis) SetEIP2718Transition(n *uint64) error {
+	return g.Config.SetEIP2718Transition(n)
+}
+
+func (g *Genesis) GetEIP4399Transition() *uint64 {
+	return g.Config.GetEIP4399Transition()
+}
+
+func (g *Genesis) SetEIP4399Transition(n *uint64) error {
+	return g.Config.SetEIP4399Transition(n)
+}
+
+func (g *Genesis) GetMergeVirtualTransition() *uint64 {
+	return g.Config.GetMergeVirtualTransition()
+}
+
+func (g *Genesis) SetMergeVirtualTransition(n *uint64) error {
+	return g.Config.SetMergeVirtualTransition(n)
+}
+
 func (g *Genesis) GetECBP1100Transition() *uint64 {
 	return g.Config.GetECBP1100Transition()
 }
 
 func (g *Genesis) SetECBP1100Transition(n *uint64) error {
 	return g.Config.SetECBP1100Transition(n)
+}
+
+func (g *Genesis) GetECBP1100DeactivateTransition() *uint64 {
+	return g.Config.GetECBP1100DeactivateTransition()
+}
+
+func (g *Genesis) SetECBP1100DeactivateTransition(n *uint64) error {
+	return g.Config.SetECBP1100DeactivateTransition(n)
 }
 
 func (g *Genesis) IsEnabled(fn func() *uint64, n *big.Int) bool {
@@ -590,6 +905,39 @@ func (g *Genesis) GetConsensusEngineType() ctypes.ConsensusEngineT {
 
 func (g *Genesis) MustSetConsensusEngineType(t ctypes.ConsensusEngineT) error {
 	return g.Config.MustSetConsensusEngineType(t)
+}
+
+func (g *Genesis) GetIsDevMode() bool {
+	return g.Config.GetIsDevMode()
+}
+
+func (g *Genesis) SetDevMode(devMode bool) error {
+	return g.Config.SetDevMode(devMode)
+}
+
+func (g *Genesis) GetEthashTerminalTotalDifficulty() *big.Int {
+	return g.Config.GetEthashTerminalTotalDifficulty()
+}
+
+func (g *Genesis) SetEthashTerminalTotalDifficulty(n *big.Int) error {
+	return g.Config.SetEthashTerminalTotalDifficulty(n)
+}
+
+func (g *Genesis) GetEthashTerminalTotalDifficultyPassed() bool {
+	return g.Config.GetEthashTerminalTotalDifficultyPassed()
+}
+
+func (g *Genesis) SetEthashTerminalTotalDifficultyPassed(t bool) error {
+	return g.Config.SetEthashTerminalTotalDifficultyPassed(t)
+}
+
+// IsTerminalPoWBlock returns whether the given block is the last block of PoW stage.
+func (g *Genesis) IsTerminalPoWBlock(parentTotalDiff *big.Int, totalDiff *big.Int) bool {
+	terminalTotalDifficulty := g.Config.GetEthashTerminalTotalDifficulty()
+	if terminalTotalDifficulty == nil {
+		return false
+	}
+	return parentTotalDiff.Cmp(terminalTotalDifficulty) < 0 && totalDiff.Cmp(terminalTotalDifficulty) >= 0
 }
 
 func (g *Genesis) GetEthashMinimumDifficulty() *big.Int {
@@ -662,6 +1010,30 @@ func (g *Genesis) GetEthashEIP2384Transition() *uint64 {
 
 func (g *Genesis) SetEthashEIP2384Transition(n *uint64) error {
 	return g.Config.SetEthashEIP2384Transition(n)
+}
+
+func (g *Genesis) GetEthashEIP3554Transition() *uint64 {
+	return g.Config.GetEthashEIP3554Transition()
+}
+
+func (g *Genesis) SetEthashEIP3554Transition(n *uint64) error {
+	return g.Config.SetEthashEIP3554Transition(n)
+}
+
+func (g *Genesis) GetEthashEIP4345Transition() *uint64 {
+	return g.Config.GetEthashEIP4345Transition()
+}
+
+func (g *Genesis) SetEthashEIP4345Transition(n *uint64) error {
+	return g.Config.SetEthashEIP4345Transition(n)
+}
+
+func (g *Genesis) GetEthashEIP5133Transition() *uint64 {
+	return g.Config.GetEthashEIP5133Transition()
+}
+
+func (g *Genesis) SetEthashEIP5133Transition(n *uint64) error {
+	return g.Config.SetEthashEIP5133Transition(n)
 }
 
 func (g *Genesis) GetEthashECIP1010PauseTransition() *uint64 {
@@ -750,4 +1122,17 @@ func (g *Genesis) GetCliqueEpoch() uint64 {
 
 func (g *Genesis) SetCliqueEpoch(n uint64) error {
 	return g.Config.SetCliqueEpoch(n)
+}
+
+func (g *Genesis) GetLyra2NonceTransition() *uint64 {
+	return g.Config.GetLyra2NonceTransition()
+}
+
+func (g *Genesis) SetLyra2NonceTransition(n *uint64) error {
+	return g.Config.SetLyra2NonceTransition(n)
+}
+
+func (g *Genesis) String() string {
+	j, _ := json.MarshalIndent(g, "", "    ")
+	return "Genesis: " + string(j)
 }

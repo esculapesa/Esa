@@ -34,7 +34,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/ethereum/go-ethereum/internal/reexec"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -115,7 +115,6 @@ func (e *ExecAdapter) NewNode(config *NodeConfig) (Node, error) {
 	conf.Stack.P2P.EnableMsgEvents = config.EnableMsgEvents
 	conf.Stack.P2P.NoDiscovery = true
 	conf.Stack.P2P.NAT = nil
-	conf.Stack.NoUSB = true
 
 	// Listen on a localhost port, which we set when we
 	// initialise NodeConfig (usually a random port)
@@ -429,9 +428,11 @@ func execP2PNode() {
 
 	// Send status to the host.
 	statusJSON, _ := json.Marshal(status)
-	if _, err := http.Post(statusURL, "application/json", bytes.NewReader(statusJSON)); err != nil {
+	resp, err := http.Post(statusURL, "application/json", bytes.NewReader(statusJSON))
+	if err != nil {
 		log.Crit("Can't post startup info", "url", statusURL, "err", err)
 	}
+	resp.Body.Close()
 	if stackErr != nil {
 		os.Exit(1)
 	}
@@ -502,7 +503,6 @@ func startExecNodeStack() (*node.Node, error) {
 	// Add the snapshot API.
 	stack.RegisterAPIs([]rpc.API{{
 		Namespace: "simulation",
-		Version:   "1.0",
 		Service:   SnapshotAPI{services},
 	}})
 

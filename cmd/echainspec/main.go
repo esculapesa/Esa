@@ -13,8 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
 	"github.com/ethereum/go-ethereum/params/types/genesisT"
 	"github.com/ethereum/go-ethereum/params/types/goethereum"
-	"github.com/ethereum/go-ethereum/params/types/multigeth"
-	"github.com/ethereum/go-ethereum/params/types/parity"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -26,15 +24,9 @@ var (
 		"coregeth": &genesisT.Genesis{
 			Config: &coregeth.CoreGethChainConfig{},
 		},
-		"multigeth": &genesisT.Genesis{
-			Config: &multigeth.ChainConfig{},
-		},
 		"geth": &genesisT.Genesis{
 			Config: &goethereum.ChainConfig{},
 		},
-		"parity": &parity.ParityChainSpec{},
-		// TODO
-		// "aleth"
 		// "retesteth"
 	}
 )
@@ -49,18 +41,13 @@ var chainspecFormats = func() []string {
 
 var defaultChainspecValues = map[string]ctypes.Configurator{
 	"classic": params.DefaultClassicGenesisBlock(),
-	"kotti":   params.DefaultKottiGenesisBlock(),
 	"mordor":  params.DefaultMordorGenesisBlock(),
 
 	"foundation": params.DefaultGenesisBlock(),
-	"ropsten":    params.DefaultRopstenGenesisBlock(),
-	"rinkeby":    params.DefaultRinkebyGenesisBlock(),
 	"goerli":     params.DefaultGoerliGenesisBlock(),
-	"yolov2":     params.DefaultYoloV2GenesisBlock(),
+	"sepolia":    params.DefaultSepoliaGenesisBlock(),
 
-	"social":      params.DefaultSocialGenesisBlock(),
-	"ethersocial": params.DefaultEthersocialGenesisBlock(),
-	"mix":         params.DefaultMixGenesisBlock(),
+	"mintme": params.DefaultMintMeGenesisBlock(),
 }
 
 var defaultChainspecNames = func() []string {
@@ -144,7 +131,7 @@ func convertf(ctx *cli.Context) error {
 	} else if !ok {
 		return errInvalidOutputFlag
 	}
-	err := confp.Convert(globalChainspecValue, c)
+	err := confp.Crush(c, globalChainspecValue, true)
 	if err != nil {
 		return err
 	}
@@ -159,7 +146,7 @@ func convertf(ctx *cli.Context) error {
 func init() {
 	app.Name = "echainspec"
 	app.Usage = "A chain specification and configuration tool for EVM clients"
-	//app.Description = "A chain specification and configuration tool for EVM clients"
+	// app.Description = "A chain specification and configuration tool for EVM clients"
 	app.Version = params.VersionWithCommit(gitCommit, gitDate)
 	cli.AppHelpTemplate = `{{.Name}} {{if .Flags}}[global options] {{end}}command{{if .Flags}} [command options]{{end}} [arguments...]
 
@@ -195,21 +182,17 @@ USAGE:
 
 EXAMPLES:
 
-	Convert an external chain configuration between client formats (from STDIN)
+	Crush an external chain configuration between client formats (from STDIN)
 .
 		> cat my-parity-spec.json | {{.Name}} --inputf parity --outputf [geth|coregeth]
 
-	Convert an external chain configuration between client formats (from file).
+	Crush an external chain configuration between client formats (from file).
 
 		> {{.Name}} --inputf parity --file my-parity-spec.json --outputf [geth|coregeth]
 
 	Print a default Ethereum Classic network chain configuration in coregeth format:
 
 		> {{.Name}} --default classic --outputf coregeth
-
-	Validate a default Kotti network chain configuration for block #3000000:
-
-		> {{.Name}} --default kotti validate 3000000
 
 VERSION:
    {{.Version}}

@@ -18,6 +18,9 @@ package goethereum
 
 import (
 	"math/big"
+	"reflect"
+	"runtime"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
@@ -44,6 +47,7 @@ func bigNewU64(i *big.Int) *uint64 {
 	return newU64(i.Uint64())
 }
 
+// nolint: staticcheck
 func setBig(i *big.Int, u *uint64) *big.Int {
 	if u == nil {
 		return nil
@@ -51,6 +55,22 @@ func setBig(i *big.Int, u *uint64) *big.Int {
 	i = big.NewInt(int64(*u))
 	return i
 }
+
+// bigNewU64Min is disused, but nice-to-have logic in case useful.
+// It chooses the first existing (non-nil) minimum big.Int value.
+// This has been useful for testnet configurations in particular.
+// func bigNewU64Min(i, j *big.Int) *uint64 {
+// 	if i == nil {
+// 		return bigNewU64(j)
+// 	}
+// 	if j == nil {
+// 		return bigNewU64(i)
+// 	}
+// 	if j.Cmp(i) < 0 {
+// 		return bigNewU64(j)
+// 	}
+// 	return bigNewU64(i)
+// }
 
 func (c *ChainConfig) GetAccountStartNonce() *uint64 {
 	return internal.GlobalConfigurator().GetAccountStartNonce()
@@ -82,6 +102,22 @@ func (c *ChainConfig) GetGasLimitBoundDivisor() *uint64 {
 
 func (c *ChainConfig) SetGasLimitBoundDivisor(n *uint64) error {
 	return internal.GlobalConfigurator().SetGasLimitBoundDivisor(n)
+}
+
+func (c *ChainConfig) GetElasticityMultiplier() uint64 {
+	return internal.GlobalConfigurator().GetElasticityMultiplier()
+}
+
+func (c *ChainConfig) SetElasticityMultiplier(n uint64) error {
+	return internal.GlobalConfigurator().SetElasticityMultiplier(n)
+}
+
+func (c *ChainConfig) GetBaseFeeChangeDenominator() uint64 {
+	return internal.GlobalConfigurator().GetBaseFeeChangeDenominator()
+}
+
+func (c *ChainConfig) SetBaseFeeChangeDenominator(n uint64) error {
+	return internal.GlobalConfigurator().SetBaseFeeChangeDenominator(n)
 }
 
 // GetNetworkID and the following Set/Getters for ChainID too
@@ -117,6 +153,18 @@ func (c *ChainConfig) GetChainID() *big.Int {
 
 func (c *ChainConfig) SetChainID(n *big.Int) error {
 	c.ChainID = n
+	return nil
+}
+
+func (c *ChainConfig) GetSupportedProtocolVersions() []uint {
+	if len(c.SupportedProtocolVersions) == 0 {
+		c.SupportedProtocolVersions = vars.DefaultProtocolVersions
+	}
+	return c.SupportedProtocolVersions
+}
+
+func (c *ChainConfig) SetSupportedProtocolVersions(p []uint) error {
+	c.SupportedProtocolVersions = p
 	return nil
 }
 
@@ -382,12 +430,16 @@ func (c *ChainConfig) SetEIP1706Transition(n *uint64) error {
 	return nil
 }
 
+// GetEIP2537Transition implements EIP2537.
+// This logic is written but not configured for any Ethereum-supported networks, yet.
 func (c *ChainConfig) GetEIP2537Transition() *uint64 {
-	return bigNewU64(c.YoloV2Block)
+	return nil
 }
 
 func (c *ChainConfig) SetEIP2537Transition(n *uint64) error {
-	c.YoloV2Block = setBig(c.YoloV2Block, n)
+	if n != nil {
+		return ctypes.ErrUnsupportedConfigFatal
+	}
 	return nil
 }
 
@@ -400,21 +452,318 @@ func (c *ChainConfig) SetECBP1100Transition(n *uint64) error {
 	return nil
 }
 
+func (c *ChainConfig) GetECBP1100DeactivateTransition() *uint64 {
+	return bigNewU64(c.ecbp1100DeactivateTransition)
+}
+
+func (c *ChainConfig) SetECBP1100DeactivateTransition(n *uint64) error {
+	c.ecbp1100DeactivateTransition = setBig(c.ecbp1100DeactivateTransition, n)
+	return nil
+}
+
+// GetEIP2315Transition implements EIP2537.
+// This logic is written but not configured for any Ethereum-supported networks, yet.
 func (c *ChainConfig) GetEIP2315Transition() *uint64 {
-	return bigNewU64(c.YoloV2Block)
+	return nil
 }
 
 func (c *ChainConfig) SetEIP2315Transition(n *uint64) error {
-	c.YoloV2Block = setBig(c.YoloV2Block, n)
+	if n != nil {
+		return ctypes.ErrUnsupportedConfigFatal
+	}
 	return nil
 }
 
 func (c *ChainConfig) GetEIP2929Transition() *uint64 {
-	return bigNewU64(c.YoloV2Block)
+	return bigNewU64(c.BerlinBlock)
 }
 
 func (c *ChainConfig) SetEIP2929Transition(n *uint64) error {
-	c.YoloV2Block = setBig(c.YoloV2Block, n)
+	c.BerlinBlock = setBig(c.BerlinBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP2930Transition() *uint64 {
+	return bigNewU64(c.BerlinBlock)
+}
+
+func (c *ChainConfig) SetEIP2930Transition(n *uint64) error {
+	c.BerlinBlock = setBig(c.BerlinBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP1559Transition() *uint64 {
+	return bigNewU64(c.LondonBlock)
+}
+
+func (c *ChainConfig) SetEIP1559Transition(n *uint64) error {
+	c.LondonBlock = setBig(c.LondonBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP3541Transition() *uint64 {
+	return bigNewU64(c.LondonBlock)
+}
+
+func (c *ChainConfig) SetEIP3541Transition(n *uint64) error {
+	c.LondonBlock = setBig(c.LondonBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP3529Transition() *uint64 {
+	return bigNewU64(c.LondonBlock)
+}
+
+func (c *ChainConfig) SetEIP3529Transition(n *uint64) error {
+	c.LondonBlock = setBig(c.LondonBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP3198Transition() *uint64 {
+	return bigNewU64(c.LondonBlock)
+}
+
+func (c *ChainConfig) SetEIP3198Transition(n *uint64) error {
+	c.LondonBlock = setBig(c.LondonBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP2565Transition() *uint64 {
+	return bigNewU64(c.BerlinBlock)
+}
+
+func (c *ChainConfig) SetEIP2565Transition(n *uint64) error {
+	c.BerlinBlock = setBig(c.BerlinBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP2718Transition() *uint64 {
+	return bigNewU64(c.BerlinBlock)
+}
+
+func (c *ChainConfig) SetEIP2718Transition(n *uint64) error {
+	c.BerlinBlock = setBig(c.BerlinBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEIP4399Transition() *uint64 {
+	return nil // API removed 1.10.19
+}
+
+func (c *ChainConfig) SetEIP4399Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+// EIP3651: Warm COINBASE
+func (c *ChainConfig) GetEIP3651TransitionTime() *uint64 {
+	return c.ShanghaiTime
+}
+
+func (c *ChainConfig) SetEIP3651TransitionTime(n *uint64) error {
+	c.ShanghaiTime = n
+	return nil
+}
+
+// GetEIP3855TransitionTime EIP3855: PUSH0 instruction
+func (c *ChainConfig) GetEIP3855TransitionTime() *uint64 {
+	return c.ShanghaiTime
+}
+
+func (c *ChainConfig) SetEIP3855TransitionTime(n *uint64) error {
+	c.ShanghaiTime = n
+	return nil
+}
+
+// GetEIP3860TransitionTime EIP3860: Limit and meter initcode
+func (c *ChainConfig) GetEIP3860TransitionTime() *uint64 {
+	return c.ShanghaiTime
+}
+
+func (c *ChainConfig) SetEIP3860TransitionTime(n *uint64) error {
+	c.ShanghaiTime = n
+	return nil
+}
+
+// GetEIP4895TransitionTime EIP4895: Beacon chain push withdrawals as operations
+func (c *ChainConfig) GetEIP4895TransitionTime() *uint64 {
+	return c.ShanghaiTime
+}
+
+func (c *ChainConfig) SetEIP4895TransitionTime(n *uint64) error {
+	c.ShanghaiTime = n
+	return nil
+}
+
+// GetEIP6049TransitionTime EIP6049: Deprecate SELFDESTRUCT
+func (c *ChainConfig) GetEIP6049TransitionTime() *uint64 {
+	return c.ShanghaiTime
+}
+
+func (c *ChainConfig) SetEIP6049TransitionTime(n *uint64) error {
+	c.ShanghaiTime = n
+	return nil
+}
+
+// EIP3651: Warm COINBASE
+func (c *ChainConfig) GetEIP3651Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP3651Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+// GetEIP3855Transition EIP3855: PUSH0 instruction
+func (c *ChainConfig) GetEIP3855Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP3855Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+// GetEIP3860Transition EIP3860: Limit and meter initcode
+func (c *ChainConfig) GetEIP3860Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP3860Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+// GetEIP4895Transition EIP4895: Beacon chain push withdrawals as operations
+func (c *ChainConfig) GetEIP4895Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP4895Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+// GetEIP6049Transition EIP6049: Deprecate SELFDESTRUCT
+func (c *ChainConfig) GetEIP6049Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP6049Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+// GetEIP4844TransitionTime EIP4844: Shard Block Transactions
+func (c *ChainConfig) GetEIP4844TransitionTime() *uint64 {
+	return c.CancunTime
+}
+
+func (c *ChainConfig) SetEIP4844TransitionTime(n *uint64) error {
+	c.CancunTime = n
+	return nil
+}
+
+// GetEIP7516TransitionTime EIP7516: Shard Block Transactions
+func (c *ChainConfig) GetEIP7516TransitionTime() *uint64 {
+	return c.CancunTime
+}
+
+func (c *ChainConfig) SetEIP7516TransitionTime(n *uint64) error {
+	c.CancunTime = n
+	return nil
+}
+
+// GetEIP1153TransitionTime EIP1153: Transient Storage opcodes
+func (c *ChainConfig) GetEIP1153TransitionTime() *uint64 {
+	return c.CancunTime
+}
+
+func (c *ChainConfig) SetEIP1153TransitionTime(n *uint64) error {
+	c.CancunTime = n
+	return nil
+}
+
+// GetEIP5656TransitionTime EIP5656: MCOPY - Memory copying instruction
+func (c *ChainConfig) GetEIP5656TransitionTime() *uint64 {
+	return c.CancunTime
+}
+
+func (c *ChainConfig) SetEIP5656TransitionTime(n *uint64) error {
+	c.CancunTime = n
+	return nil
+}
+
+// GetEIP6780TransitionTime EIP6780: SELFDESTRUCT only in same transaction
+func (c *ChainConfig) GetEIP6780TransitionTime() *uint64 {
+	return c.CancunTime
+}
+
+func (c *ChainConfig) SetEIP6780TransitionTime(n *uint64) error {
+	c.CancunTime = n
+	return nil
+}
+
+// GetEIP6780TransitionTime EIP4788: Beacon block root in the EVM
+func (c *ChainConfig) GetEIP4788TransitionTime() *uint64 {
+	return c.CancunTime
+}
+
+func (c *ChainConfig) SetEIP4788TransitionTime(n *uint64) error {
+	c.CancunTime = n
+	return nil
+}
+
+// Cancun by block number
+func (c *ChainConfig) GetEIP4844Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP4844Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+func (c *ChainConfig) GetEIP7516Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP7516Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+func (c *ChainConfig) GetEIP1153Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP1153Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+func (c *ChainConfig) GetEIP5656Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP5656Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+func (c *ChainConfig) GetEIP6780Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP6780Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+func (c *ChainConfig) GetEIP4788Transition() *uint64 {
+	return nil
+}
+
+func (c *ChainConfig) SetEIP4788Transition(n *uint64) error {
+	return ctypes.ErrUnsupportedConfigNoop
+}
+
+func (c *ChainConfig) GetMergeVirtualTransition() *uint64 {
+	return bigNewU64(c.MergeNetsplitBlock)
+}
+
+func (c *ChainConfig) SetMergeVirtualTransition(n *uint64) error {
+	c.MergeNetsplitBlock = setBig(c.MergeNetsplitBlock, n)
 	return nil
 }
 
@@ -423,7 +772,22 @@ func (c *ChainConfig) IsEnabled(fn func() *uint64, n *big.Int) bool {
 	if f == nil || n == nil {
 		return false
 	}
+	fnName := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+	if strings.Contains(fnName, "ECBP1100Transition") {
+		deactivateTransition := c.GetECBP1100DeactivateTransition()
+		if deactivateTransition != nil {
+			return big.NewInt(int64(*deactivateTransition)).Cmp(n) > 0 && big.NewInt(int64(*f)).Cmp(n) <= 0
+		}
+	}
 	return big.NewInt(int64(*f)).Cmp(n) <= 0
+}
+
+func (c *ChainConfig) IsEnabledByTime(fn func() *uint64, n *uint64) bool {
+	f := fn()
+	if f == nil || n == nil {
+		return false
+	}
+	return *f <= *n
 }
 
 func (c *ChainConfig) GetForkCanonHash(n uint64) common.Hash {
@@ -454,6 +818,9 @@ func (c *ChainConfig) GetConsensusEngineType() ctypes.ConsensusEngineT {
 	if c.Clique != nil {
 		return ctypes.ConsensusEngineT_Clique
 	}
+	if c.Lyra2 != nil {
+		return ctypes.ConsensusEngineT_Lyra2
+	}
 	return ctypes.ConsensusEngineT_Ethash
 }
 
@@ -467,9 +834,54 @@ func (c *ChainConfig) MustSetConsensusEngineType(t ctypes.ConsensusEngineT) erro
 		c.Clique = new(ctypes.CliqueConfig)
 		c.Ethash = nil
 		return nil
+	case ctypes.ConsensusEngineT_Lyra2:
+		c.Lyra2 = new(ctypes.Lyra2Config)
+		c.Ethash = nil
+		c.Clique = nil
+		return nil
 	default:
 		return ctypes.ErrUnsupportedConfigFatal
 	}
+}
+
+func (c *ChainConfig) GetIsDevMode() bool {
+	return c.IsDevMode
+}
+
+func (c *ChainConfig) SetDevMode(devMode bool) error {
+	c.IsDevMode = devMode
+	return nil
+}
+
+func (c *ChainConfig) GetEthashTerminalTotalDifficulty() *big.Int {
+	return c.TerminalTotalDifficulty
+}
+
+func (c *ChainConfig) SetEthashTerminalTotalDifficulty(n *big.Int) error {
+	if n == nil {
+		c.TerminalTotalDifficulty = nil
+		return nil
+	}
+	c.TerminalTotalDifficulty = new(big.Int).Set(n)
+	return nil
+}
+
+func (c *ChainConfig) GetEthashTerminalTotalDifficultyPassed() bool {
+	return c.TerminalTotalDifficultyPassed
+}
+
+func (c *ChainConfig) SetEthashTerminalTotalDifficultyPassed(t bool) error {
+	c.TerminalTotalDifficultyPassed = t
+	return nil
+}
+
+// IsTerminalPoWBlock returns whether the given block is the last block of PoW stage.
+func (c *ChainConfig) IsTerminalPoWBlock(parentTotalDiff *big.Int, totalDiff *big.Int) bool {
+	terminalTotalDifficulty := c.GetEthashTerminalTotalDifficulty()
+	if terminalTotalDifficulty == nil {
+		return false
+	}
+	return parentTotalDiff.Cmp(terminalTotalDifficulty) < 0 && totalDiff.Cmp(terminalTotalDifficulty) >= 0
 }
 
 func (c *ChainConfig) GetEthashMinimumDifficulty() *big.Int {
@@ -604,6 +1016,36 @@ func (c *ChainConfig) SetEthashEIP2384Transition(n *uint64) error {
 	return nil
 }
 
+func (c *ChainConfig) GetEthashEIP3554Transition() *uint64 {
+	if c.GetConsensusEngineType() != ctypes.ConsensusEngineT_Ethash {
+		return nil
+	}
+	return bigNewU64(c.LondonBlock)
+}
+
+func (c *ChainConfig) SetEthashEIP3554Transition(n *uint64) error {
+	if c.Ethash == nil {
+		return ctypes.ErrUnsupportedConfigFatal
+	}
+	c.LondonBlock = setBig(c.LondonBlock, n)
+	return nil
+}
+
+func (c *ChainConfig) GetEthashEIP4345Transition() *uint64 {
+	if c.GetConsensusEngineType() != ctypes.ConsensusEngineT_Ethash {
+		return nil
+	}
+	return bigNewU64(c.ArrowGlacierBlock)
+}
+
+func (c *ChainConfig) SetEthashEIP4345Transition(n *uint64) error {
+	if c.Ethash == nil {
+		return ctypes.ErrUnsupportedConfigFatal
+	}
+	c.ArrowGlacierBlock = setBig(c.ArrowGlacierBlock, n)
+	return nil
+}
+
 func (c *ChainConfig) GetEthashECIP1010PauseTransition() *uint64 {
 	if c.GetConsensusEngineType() != ctypes.ConsensusEngineT_Ethash {
 		return nil
@@ -703,6 +1145,18 @@ func (c *ChainConfig) SetEthashECIP1099Transition(n *uint64) error {
 	return ctypes.ErrUnsupportedConfigFatal
 }
 
+func (c *ChainConfig) GetEthashEIP5133Transition() *uint64 {
+	return bigNewU64(c.GrayGlacierBlock)
+}
+
+func (c *ChainConfig) SetEthashEIP5133Transition(n *uint64) error {
+	if c.Ethash == nil {
+		return ctypes.ErrUnsupportedConfigFatal
+	}
+	c.GrayGlacierBlock = setBig(c.GrayGlacierBlock, n)
+	return nil
+}
+
 func (c *ChainConfig) GetEthashDifficultyBombDelaySchedule() ctypes.Uint64BigMapEncodesHex {
 	if c.GetConsensusEngineType() != ctypes.ConsensusEngineT_Ethash {
 		return nil
@@ -752,5 +1206,22 @@ func (c *ChainConfig) SetCliqueEpoch(n uint64) error {
 		return ctypes.ErrUnsupportedConfigFatal
 	}
 	c.Clique.Epoch = n
+	return nil
+}
+
+func (c *ChainConfig) GetLyra2NonceTransition() *uint64 {
+	if c.GetConsensusEngineType() != ctypes.ConsensusEngineT_Lyra2 {
+		return nil
+	}
+	return bigNewU64(c.Lyra2NonceTransitionBlock)
+}
+
+func (c *ChainConfig) SetLyra2NonceTransition(n *uint64) error {
+	if c.Lyra2 == nil {
+		return ctypes.ErrUnsupportedConfigFatal
+	}
+
+	c.Lyra2NonceTransitionBlock = setBig(c.Lyra2NonceTransitionBlock, n)
+
 	return nil
 }

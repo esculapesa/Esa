@@ -20,37 +20,24 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/params/confp"
-	"github.com/ethereum/go-ethereum/params/confp/tconvert"
 	"github.com/ethereum/go-ethereum/params/types/coregeth"
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
-	"github.com/ethereum/go-ethereum/params/types/multigeth"
-	"github.com/ethereum/go-ethereum/params/types/parity"
+	"github.com/ethereum/go-ethereum/params/types/genesisT"
+	"github.com/iancoleman/strcase"
 )
 
-var paritySpecsDir = filepath.Join("..", "params", "parity.json.d")
+// coregethSpecsDir is where core-geth-style configuration files for testing are stored.
+var coregethSpecsDir = filepath.Join("..", "params", "coregeth.json.d")
 
-func paritySpecPath(name string) string {
-	p := filepath.Join(paritySpecsDir, name)
-	if fi, err := os.Open(p); err == nil {
-		fi.Close()
-		return p
-	} else if os.IsNotExist(err) {
-		// This is an ugly HACK because tests function are sometimes called from
-		// other packages that are nested more deeply, eg. eth/tracers.
-		// This is a workaround for that.
-		// And it sucks.
-		p = filepath.Join("..", paritySpecsDir, name)
-	}
-	return p
-}
-
+// MapForkNameChainspecFileState is a dictionary pairing Fork names with respective
+// file base names.
+// These are used for StateTests, BlockchainTests, but not Difficulty tests.
+// These files are expected to be found in coregethSpecsDir.
 var MapForkNameChainspecFileState = map[string]string{
 	"Frontier":             "frontier_test.json",
 	"Homestead":            "homestead_test.json",
@@ -59,12 +46,19 @@ var MapForkNameChainspecFileState = map[string]string{
 	"Byzantium":            "byzantium_test.json",
 	"Constantinople":       "constantinople_test.json",
 	"ConstantinopleFix":    "constantinople_fix_test.json",
-	"EIP158ToByzantiumAt5": "eip158_to_byzantiumat5_test.json",
+	"EIP158ToByzantiumAt5": "eip_158_to_byzantium_at_5_test.json",
 	"Istanbul":             "istanbul_test.json",
-	"ETC_Atlantis":         "classic_atlantis_test.json",
-	"ETC_Agharta":          "classic_agharta_test.json",
+	"Berlin":               "berlin_test.json",
+	"ETC_Atlantis":         "etc_atlantis_test.json",
+	"ETC_Agharta":          "etc_agharta_test.json",
+	"ETC_Phoenix":          "etc_phoenix_test.json",
+	"ETC_Magneto":          "etc_magneto_test.json",
 }
 
+// mapForkNameChainspecFileDifficulty is a dictionary pairing fork names with respective
+// file base name.
+// These configurations are used exclusively for Difficulty tests.
+// These files are expected to be found in coregethSpecsDir.
 var mapForkNameChainspecFileDifficulty = map[string]string{
 	"Ropsten":           "ropsten_difficulty_test.json",
 	"Morden":            "morden_difficulty_test.json",
@@ -81,18 +75,21 @@ var mapForkNameChainspecFileDifficulty = map[string]string{
 	"ETC_Phoenix":       "classic_phoenix_difficulty_test.json",
 }
 
-func readConfigFromSpecFile(name string) (spec ctypes.ChainConfigurator, sha1sum []byte, err error) {
-	spec = &parity.ParityChainSpec{}
+// readJSONFromFile is a utility function to read (unmarshaling) a value from a JSON file,
+// which tries to return helpful errors if it is unable to, which can be useful for debugging.
+// Additionally, it returns the SHA1 sum of the file if it does not error otherwise.
+// This is floozy logic, but I don't really care right now.
+func readJSONFromFile(name string, value interface{}) (sha1sum []byte, err error) {
 	if fi, err := os.Open(name); os.IsNotExist(err) {
-		return nil, nil, err
+		return nil, err
 	} else {
 		fi.Close()
 	}
-	b, err := ioutil.ReadFile(name)
+	b, err := os.ReadFile(name)
 	if err != nil {
 		panic(fmt.Sprintf("%s err: %s\n%s", name, err, b))
 	}
-	err = json.Unmarshal(b, spec)
+	err = json.Unmarshal(b, value)
 	if err != nil {
 		if jsonError, ok := err.(*json.SyntaxError); ok {
 			line, character, lcErr := lineAndCharacter(string(b), int(jsonError.Offset))
@@ -111,44 +108,16 @@ func readConfigFromSpecFile(name string) (spec ctypes.ChainConfigurator, sha1sum
 		panic(fmt.Sprintf("%s err: %s\n%s", name, err, b))
 	}
 	bb := sha1.Sum(b)
-	return spec, bb[:], nil
-}
-
-func writeDifficultyConfigFile(conf ctypes.ChainConfigurator, forkName string) (string, [20]byte, error) {
-	genesis := params.DefaultRopstenGenesisBlock()
-	genesis.Config = conf
-
-	pspec, err := tconvert.NewParityChainSpec(forkName, genesis, []string{})
-	if err != nil {
-		return "", [20]byte{}, err
-	}
-	specFilepath, ok := mapForkNameChainspecFileDifficulty[forkName]
-	if !ok {
-		return "", [20]byte{}, fmt.Errorf("nonexisting chainspec JSON file path, ref/assoc config: %s", forkName)
-	}
-
-	b, err := json.MarshalIndent(pspec, "", "    ")
-	if err != nil {
-		return "", [20]byte{}, err
-	}
-
-	err = ioutil.WriteFile(filepath.Join("..", "params", "parity.json.d", specFilepath), b, os.ModePerm)
-	if err != nil {
-		return "", [20]byte{}, err
-	}
-
-	sum := sha1.Sum(b)
-	return specFilepath, sum, nil
+	return bb[:], nil
 }
 
 func init() {
-
 	if os.Getenv(CG_CHAINCONFIG_FEATURE_EQ_COREGETH_KEY) != "" {
 		log.Println("converting to CoreGeth Chain Config data type.")
 
 		for i, config := range Forks {
 			mgc := &coregeth.CoreGethChainConfig{}
-			if err := confp.Convert(config, mgc); ctypes.IsFatalUnsupportedErr(err) {
+			if err := confp.Crush(mgc, config, true); ctypes.IsFatalUnsupportedErr(err) {
 				panic(err)
 			}
 			Forks[i] = mgc
@@ -156,89 +125,55 @@ func init() {
 
 		for k, v := range difficultyChainConfigurations {
 			mgc := &coregeth.CoreGethChainConfig{}
-			if err := confp.Convert(v, mgc); ctypes.IsFatalUnsupportedErr(err) {
+			if err := confp.Crush(mgc, v, true); ctypes.IsFatalUnsupportedErr(err) {
 				panic(err)
 			}
 			difficultyChainConfigurations[k] = mgc
 		}
+	} else if os.Getenv(CG_CHAINCONFIG_CHAINSPECS_COREGETH_KEY) != "" {
+		// This logic reads Forks (used by [General]StateTests) and Difficulty configurations
+		// from their respective coregeth.json.d/<file>.json files.
+		// This implementation differs from that of this scope's predecessor CG_CHAINCONFIG_CHAINSPECS_OPENETHEREUM_KEY
+		// because it only replaces Go values when it finds a corresponding configuration file
+		// (it does not demand to replace all available configurations).
+		// This avoids some unnecessary overhead for establishing configurations
+		// that aren't really relevant, like Morden testnets.
+		log.Println("Setting chain configurations from core-geth chainspecs")
 
-	} else if os.Getenv(CG_CHAINCONFIG_FEATURE_EQ_MULTIGETHV0_KEY) != "" {
-		log.Println("converting to MultiGethV0 data type.")
-
-		for i, config := range Forks {
-			pspec := &multigeth.ChainConfig{}
-			if err := confp.Convert(config, pspec); ctypes.IsFatalUnsupportedErr(err) {
-				panic(err)
+		// newForks avoid write+iterate on Forks map.
+		// All key:values in newForks will be written back to Forks.
+		newForks := map[string]ctypes.ChainConfigurator{}
+		for name := range Forks {
+			gen := &genesisT.Genesis{
+				Config: &coregeth.CoreGethChainConfig{},
 			}
-			Forks[i] = pspec
+			specPath := filepath.Join(coregethSpecsDir, strcase.ToSnake(name)+"_test.json")
+
+			sha1sum, err := readJSONFromFile(specPath, gen)
+			if err != nil {
+				log.Printf("Failed to read core-geth state config file for %s: %s", name, specPath)
+				continue
+			}
+			chainspecRefsState[name] = chainspecRef{filepath.Base(specPath), sha1sum}
+			newForks[name] = gen.Config
 		}
-
-		for k, v := range difficultyChainConfigurations {
-			pspec := &multigeth.ChainConfig{}
-			if err := confp.Convert(v, pspec); ctypes.IsFatalUnsupportedErr(err) {
-				panic(err)
-			}
-			difficultyChainConfigurations[k] = pspec
-		}
-
-	} else if os.Getenv(CG_CHAINCONFIG_FEATURE_EQ_OPENETHEREUM_KEY) != "" {
-		log.Println("converting to Parity data type.")
-
-		for i, config := range Forks {
-			pspec := &parity.ParityChainSpec{}
-			if err := confp.Convert(config, pspec); ctypes.IsFatalUnsupportedErr(err) {
-				panic(err)
-			}
-			Forks[i] = pspec
-		}
-
-		for k, v := range difficultyChainConfigurations {
-			pspec := &parity.ParityChainSpec{}
-			if err := confp.Convert(v, pspec); ctypes.IsFatalUnsupportedErr(err) {
-				panic(err)
-			}
-			difficultyChainConfigurations[k] = pspec
-		}
-
-	} else if os.Getenv(CG_CHAINCONFIG_CHAINSPECS_OPENETHEREUM_KEY) != "" {
-		log.Println("Setting chain configurations from Parity chainspecs")
-
-		for k, v := range MapForkNameChainspecFileState {
-			config, sha1sum, err := readConfigFromSpecFile(paritySpecPath(v))
-			if os.IsNotExist(err) {
-				wd, wde := os.Getwd()
-				if wde != nil {
-					panic(wde)
-				}
-				panic(fmt.Sprintf("failed to find chainspec, wd: %s, config: %v/file: %v", wd, k, v))
-			} else if err != nil {
-				panic(err)
-			}
-			chainspecRefsState[k] = chainspecRef{filepath.Base(v), sha1sum}
-			Forks[k] = config
+		for name, conf := range newForks {
+			Forks[name] = conf
 		}
 
 		for k, v := range mapForkNameChainspecFileDifficulty {
-			config, sha1sum, err := readConfigFromSpecFile(paritySpecPath(v))
-			if os.IsNotExist(err) && os.Getenv(CG_GENERATE_DIFFICULTY_TESTS_KEY) != "" {
-				log.Println("Will generate chainspec file for", k, v)
-				conf := difficultyChainConfigurations[k]
-				_, sha, err := writeDifficultyConfigFile(conf, k)
-				if err != nil {
-					panic(fmt.Sprintf("error writing difficulty config file: %s: %s %v", k, v, err))
-				}
-				sha1sum := []byte{}
-				for _, v := range sha {
-					sha1sum = append(sha1sum, v)
-				}
-				chainspecRefsDifficulty[k] = chainspecRef{filepath.Base(v), sha1sum}
-				difficultyChainConfigurations[k] = conf
-			} else if len(sha1sum) == 0 {
-				panic("zero sum game")
-			} else {
-				chainspecRefsDifficulty[k] = chainspecRef{filepath.Base(v), sha1sum}
-				difficultyChainConfigurations[k] = config
+			conf := &coregeth.CoreGethChainConfig{}
+			specPath := filepath.Join(coregethSpecsDir, v)
+			sha1sum, err := readJSONFromFile(specPath, conf)
+			if err != nil {
+				log.Printf("Failed to read core-geth difficulty file for %s: %s", k, specPath)
+				continue
 			}
+			if len(sha1sum) == 0 {
+				panic("empty sha1 sum")
+			}
+			chainspecRefsDifficulty[k] = chainspecRef{filepath.Base(v), sha1sum}
+			difficultyChainConfigurations[k] = conf
 		}
 	} else if os.Getenv(CG_CHAINCONFIG_CONSENSUS_EQ_CLIQUE) != "" {
 		log.Println("converting Istanbul config to Clique consensus engine")
@@ -266,84 +201,6 @@ func init() {
 		}
 	}
 }
-
-//func convertMetaForkBlocksToFeatures(config *paramtypes.CoreGethChainConfig) {
-//	if config.HomesteadBlock != nil {
-//		config.EIP2FBlock = config.HomesteadBlock
-//		config.EIP7FBlock = config.HomesteadBlock
-//		config.HomesteadBlock = nil
-//	}
-//	if config.EIP158Block != nil {
-//		config.EIP160FBlock = config.EIP158Block
-//		config.EIP161FBlock = config.EIP158Block
-//		config.EIP170FBlock = config.EIP158Block
-//		config.EIP158Block = nil
-//	}
-//	if config.ByzantiumBlock != nil {
-//		// Difficulty adjustment to target mean block time including uncles
-//		// https://github.com/ethereum/EIPs/issues/100
-//		config.EIP100FBlock = config.ByzantiumBlock
-//		// Opcode REVERT
-//		// https://eips.ethereum.org/EIPS/eip-140
-//		config.EIP140FBlock = config.ByzantiumBlock
-//		// Precompiled contract for bigint_modexp
-//		// https://github.com/ethereum/EIPs/issues/198
-//		config.EIP198FBlock = config.ByzantiumBlock
-//		// Opcodes RETURNDATACOPY, RETURNDATASIZE
-//		// https://github.com/ethereum/EIPs/issues/211
-//		config.EIP211FBlock = config.ByzantiumBlock
-//		// Precompiled contract for pairing check
-//		// https://github.com/ethereum/EIPs/issues/212
-//		config.EIP212FBlock = config.ByzantiumBlock
-//		// Precompiled contracts for addition and scalar multiplication on the elliptic curve alt_bn128
-//		// https://github.com/ethereum/EIPs/issues/213
-//		config.EIP213FBlock = config.ByzantiumBlock
-//		// Opcode STATICCALL
-//		// https://github.com/ethereum/EIPs/issues/214
-//		config.EIP214FBlock = config.ByzantiumBlock
-//		// Metropolis diff bomb delay and reducing block reward
-//		// https://github.com/ethereum/EIPs/issues/649
-//		// note that this is closely related to EIP100.
-//		// In fact, EIP100 is bundled in
-//		config.EIP649FBlock = config.ByzantiumBlock
-//		// Transaction receipt status
-//		// https://github.com/ethereum/EIPs/issues/658
-//		config.EIP658FBlock = config.ByzantiumBlock
-//		// NOT CONFIGURABLE: prevent overwriting contracts
-//		// https://github.com/ethereum/EIPs/issues/684
-//		// EIP684FBlock *big.Int `json:"eip684BFlock,omitempty"`
-//
-//		config.ByzantiumBlock = nil
-//	}
-//	if config.ConstantinopleBlock != nil {
-//		// Opcodes SHR, SHL, SAR
-//		// https://eips.ethereum.org/EIPS/eip-145
-//		config.EIP145FBlock = config.ConstantinopleBlock
-//		// Opcode CREATE2
-//		// https://eips.ethereum.org/EIPS/eip-1014
-//		config.EIP1014FBlock = config.ConstantinopleBlock
-//		// Opcode EXTCODEHASH
-//		// https://eips.ethereum.org/EIPS/eip-1052
-//		config.EIP1052FBlock = config.ConstantinopleBlock
-//		// Constantinople difficulty bomb delay and block reward adjustment
-//		// https://eips.ethereum.org/EIPS/eip-1234
-//		config.EIP1234FBlock = config.ConstantinopleBlock
-//		// Net gas metering
-//		// https://eips.ethereum.org/EIPS/eip-1283
-//		config.EIP1283FBlock = config.ConstantinopleBlock
-//
-//		config.ConstantinopleBlock = nil
-//	}
-//	if config.IstanbulBlock != nil {
-//		config.EIP152FBlock = config.IstanbulBlock
-//		config.EIP1108FBlock = config.IstanbulBlock
-//		config.EIP1344FBlock = config.IstanbulBlock
-//		config.EIP1884FBlock = config.IstanbulBlock
-//		config.EIP2028FBlock = config.IstanbulBlock
-//		config.EIP2200FBlock = config.IstanbulBlock
-//		config.IstanbulBlock = nil
-//	}
-//}
 
 // https://adrianhesketh.com/2017/03/18/getting-line-and-character-positions-from-gos-json-unmarshal-errors/
 func lineAndCharacter(input string, offset int) (line int, character int, err error) {

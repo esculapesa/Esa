@@ -17,179 +17,172 @@
 package tests
 
 import (
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"math/big"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/internal/build"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/params/confp"
+	"github.com/ethereum/go-ethereum/params/types/ctypes"
 	"github.com/ethereum/go-ethereum/params/vars"
 )
 
-var outNDJSONFile = filepath.Join(difficultyTestDir, "mgen_difficulty.ndjson")
-
-func TestDifficultyGen(t *testing.T) {
-	generateTests := os.Getenv(CG_GENERATE_DIFFICULTY_TESTS_KEY) != ""
-
-	if !generateTests {
+// TestDifficultyGen2 generates JSON tests from scratch.
+// The test case matrix can be deduced from the for-loop iterations.
+// The cases are written to files PER CHAIN CONFIG, following the upstream convention,
+// eg. tests/testdata_generated/BasicTests/difficultyETC_Agharta.json
+func TestDifficultyGen2(t *testing.T) {
+	if os.Getenv(CG_GENERATE_DIFFICULTY_TESTS_KEY) == "" {
 		t.Skip()
 	}
-	if os.Getenv(CG_CHAINCONFIG_CHAINSPECS_OPENETHEREUM_KEY) == "" {
-		t.Fatal("Must run test generation with JSON file chain configurations.")
+
+	configs := map[string]ctypes.ChainConfigurator{
+		"ETC_Atlantis": Forks["ETC_Atlantis"],
+		"ETC_Agharta":  Forks["ETC_Agharta"],
+		"ETC_Phoenix":  Forks["ETC_Phoenix"],
+		"ETC_Magneto":  Forks["ETC_Magneto"],
+		"ETC_Mystique": Forks["ETC_Mystique"],
 	}
 
-	err := os.MkdirAll(filepath.Dir(outNDJSONFile), os.ModePerm)
-	if err != nil {
+	targetDir := filepath.Join(generatedBasedir, "DifficultyTests", "dfETC")
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
 
-	// Truncate/touch output file.
-	err = ioutil.WriteFile(outNDJSONFile, []byte{}, os.ModePerm)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dt := new(testMatcher)
-
-	// Not difficulty-tests
-	dt.skipLoad("hexencodetest.*")
-	dt.skipLoad("crypto.*")
-	dt.skipLoad("blockgenesistest\\.json")
-	dt.skipLoad("genesishashestest\\.json")
-	dt.skipLoad("keyaddrtest\\.json")
-	dt.skipLoad("txtest\\.json")
-
-	// files are 2 years old, contains strange values
-	dt.skipLoad("difficultyCustomHomestead\\.json")
-	dt.skipLoad("difficultyMorden\\.json")
-	dt.skipLoad("difficultyOlimpic\\.json")
-	dt.skipLoad("all_difficulty_tests\\.json")
-
-	for k, v := range difficultyChainConfigurations {
-		dt.config(k, v)
-	}
-
-	// Map will hold pairs of newConfigName: chainSpecrefs.
-	// It will be used during writing of associated chainspec config files.
-	// See comment below.
-	wroteNewChainConfigs := make(map[string]chainspecRef)
-
-	dt.walk(t, difficultyTestDir, func(t *testing.T, name string, test *DifficultyTest) {
-		cfg, key := dt.findConfig(name)
-
-		if test.ParentDifficulty.Cmp(vars.MinimumDifficulty) < 0 {
-			t.Skip("difficulty below minimum")
-			return
+	// Establish test matrix values.
+	//
+	// Multiples of 8 offset by 1, maxing out at 121.
+	timestampOffsets := func() []uint64 {
+		var r []uint64
+		for i := 1; i <= 121; i += 8 {
+			r = append(r, uint64(i))
 		}
-		if err := dt.checkFailure(t, name, test.Run(cfg)); err != nil {
-			t.Fatalf("failed to run difficulty test, err=%v", err)
-		} else {
+		return r
+	}()
 
-			// Collect all paired tests and originals.
-			// The output file will yield ALL tests, not just newly-generated ones.
-			specFile, ok := chainspecRefsDifficulty[key]
-			if !ok {
-				t.Fatalf("missing spec ref; key=%s file=%s", key, specFile)
-			}
-			test.Chainspec = specFile
-			test.Name = strings.ReplaceAll(name, ".json", "")
-			mustAppendTestToFile(t, test, outNDJSONFile)
+	parentDifficulty := new(big.Int).Mul(vars.MinimumDifficulty, big.NewInt(100))
+	blockTimeDefault := uint64(13)
 
-			// Kind of ugly reverse lookup from file -> fork name.
-			var forkName string
-			for k, v := range mapForkNameChainspecFileDifficulty {
-				if v == test.Chainspec.Filename {
-					forkName = k
-					break
+	filledTests := map[string]*DifficultyTest{}
+	for configName, config := range configs {
+		testsName := fmt.Sprintf("difficulty%s", configName)
+		targetFileBaseName := fmt.Sprintf("difficulty%s.json", configName)
+		targetFilePath := filepath.Join(targetDir, targetFileBaseName)
+		os.Truncate(targetFilePath, 0)
+		heights := difficultyTestCaseHeights(config)
+		for _, blockNumber := range heights {
+			for _, timestampOffset := range timestampOffsets {
+				for _, uncle := range []bool{false, true} {
+					uncleCount := 0
+					uncleHash := types.EmptyUncleHash
+					if uncle {
+						uncleCount = 1
+						uncleHash = types.CalcUncleHash([]*types.Header{{Number: common.Big1}})
+					}
+
+					// Establish test parameters.
+					newTest := &DifficultyTest{
+						ParentTimestamp:    blockNumber*blockTimeDefault + blockTimeDefault,
+						ParentDifficulty:   new(big.Int).Set(parentDifficulty),
+						ParentUncles:       uint64(uncleCount),
+						CurrentBlockNumber: blockNumber,
+						// CurrentTimestamp:  This gets filled later.
+						// CurrentDifficulty: This gets filled later.
+					}
+
+					newTest.CurrentTimestamp = newTest.ParentTimestamp + timestampOffset
+
+					// Fill the expected difficulty from the test params we've just established.
+					newTest.CurrentDifficulty = ethash.CalcDifficulty(config, newTest.CurrentTimestamp, &types.Header{
+						Difficulty: newTest.ParentDifficulty,
+						Time:       newTest.ParentTimestamp,
+						Number:     big.NewInt(int64(newTest.CurrentBlockNumber - 1)),
+						UncleHash:  uncleHash,
+					})
+
+					filledTests[fmt.Sprintf("difficulty_n%d_t%d_u%t", blockNumber, timestampOffset, uncle)] = newTest
 				}
 			}
-			if forkName == "" {
-				t.Fatal("missing fork/fileconf name", test, mapForkNameChainspecFileDifficulty)
-			}
-
-			// Is test(config) associated with a new test to be generated.
-			associateForkName, ok := writeDifficultyTestsReferencePairs[forkName]
-			if !ok {
-				t.Logf("OK [existing,nonref] %v", test)
-				return
-			}
-
-			conf, ok := difficultyChainConfigurations[associateForkName]
-			if !ok {
-				t.Fatalf("config association failed; no existing Go chain config found: %s", associateForkName)
-			}
-
-			// If associated chainspec file has not been written at least once, write it.
-			// This ensures that for test generation, a chain spec file be written if it does not already exist.
-			// This is because it is more likely that we will want to write the chain spec in Go, then have the
-			// generator write the spec along with the tests to save the hurdle of manually building the chain spec
-			// file first as a dependency for test generation.
-			specref, done := wroteNewChainConfigs[associateForkName]
-			if !done || specFile.Filename == "" {
-				t.Logf("Writing chain spec file: %s", forkName)
-				specFilepath, sum, err := writeDifficultyConfigFile(conf, associateForkName)
-				if err != nil {
-					t.Fatalf("could not write difficulty file, err=%v", err)
-				}
-				specref = chainspecRef{
-					Filename: specFilepath,
-					Sha1Sum:  sum[:],
-				}
-				wroteNewChainConfigs[associateForkName] = specref
-			}
-
-			newTest := &DifficultyTest{
-				ParentTimestamp:    test.ParentTimestamp,
-				ParentDifficulty:   test.ParentDifficulty,
-				UncleHash:          test.UncleHash,
-				CurrentTimestamp:   test.CurrentTimestamp,
-				CurrentBlockNumber: test.CurrentBlockNumber,
-				CurrentDifficulty: ethash.CalcDifficulty(conf, test.CurrentTimestamp, &types.Header{
-					Difficulty: test.ParentDifficulty,
-					Time:       test.ParentTimestamp,
-					Number:     big.NewInt(int64(test.CurrentBlockNumber - 1)),
-					UncleHash:  test.UncleHash,
-				}),
-				Chainspec: specref,
-				Name:      strings.ReplaceAll(test.Name, forkName, associateForkName),
-			}
-
-			// "Dogfood".
-			if err := newTest.Run(conf); err != nil {
-				t.Fatal(err)
-			}
-			mustAppendTestToFile(t, newTest, outNDJSONFile)
-			t.Logf("OK [generated] %v", newTest)
-
 		}
-	})
+		writeDifficultyTestFileJSON(t, targetFilePath, filledTests, testsName, configName)
+	}
 }
 
-func mustAppendTestToFile(t *testing.T, test *DifficultyTest, filep string) {
-	b, _ := json.Marshal(test)
-	out := []byte{}
-	buf := bytes.NewBuffer(out)
-	err := json.Compact(buf, b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	buf.Write([]byte("\n"))
+// difficultyTestCaseHeights returns a list of block numbers for which we want to generate
+// difficulty tests. The list is sorted in ascending order.
+// Values are provided below (if possible), at (equal), and above the configuration's fork blocks.
+func difficultyTestCaseHeights(config ctypes.ChainConfigurator) []uint64 {
+	blockHeights := []uint64{}
 
-	fi, err := os.OpenFile(filep, os.O_APPEND|os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	// Add the block-fork blocks.
+	// We do not handle time-forks, since it is assumed that under time-based chain configuration contexts,
+	// difficulty will be inoperative or otherwise disused.
+	forks := confp.BlockForks(config)
+	copy(blockHeights, forks)
+	for _, forkBlock := range forks {
+		if forkBlock > 0 {
+			blockHeights = append(blockHeights, forkBlock-1)
+		}
+		blockHeights = append(blockHeights, forkBlock+1)
+	}
+
+	// Add random blocks, spaced out. We want to have them adequately spaced
+	// so that, for example, we'd catch an accidental difficulty bomb explosion next year.
+	for i := 0; i < 1000; i++ {
+		blockHeights = append(blockHeights, uint64(10_000*1_000)) // 10_000 * 1_000 = 10_000_000
+	}
+	for i := 0; i < 100; i++ {
+		blockHeights = append(blockHeights, uint64(rand.Int63n(100_000_000)))
+	}
+
+	//
+	sort.Slice(blockHeights, func(i, j int) bool { return blockHeights[i] < blockHeights[j] })
+	return blockHeights
+}
+
+func writeDifficultyTestFileJSON(t *testing.T, filePath string, tests map[string]*DifficultyTest, testName string, configName string) {
+	head := strings.TrimSpace(build.RunGit("rev-parse", "HEAD"))
+	filledWith := fmt.Sprintf("%s-%s-%s", params.VersionName, params.VersionWithMeta, head)
+
+	enc := make(map[string]json.RawMessage)
+	for k, v := range tests {
+		b, err := json.MarshalIndent(v, "", "    ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		enc[k] = b
+	}
+
+	enc2 := map[string]interface{}{
+		testName: map[string]interface{}{
+			"_info": stInfo{
+				Comment:            "Generated by etclabscore/core-geth tests/difficulty_mgen_test.go",
+				FillingRPCServer:   filledWith,
+				FillingToolVersion: filledWith,
+				FilledWith:         "",
+				LLLCVersion:        "",
+				Source:             "",
+				SourceHash:         "",
+				Labels:             nil,
+			},
+			configName: enc,
+		},
+	}
+	b, err := json.MarshalIndent(enc2, "", "    ")
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
-	_, err = fi.Write(buf.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = fi.Close()
+	err = os.WriteFile(filePath, b, os.ModePerm)
 	if err != nil {
 		t.Fatal(err)
 	}

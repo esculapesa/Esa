@@ -3,21 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
 	"github.com/ethereum/go-ethereum/params/types/genesisT"
-	"github.com/ethereum/go-ethereum/params/types/parity"
 	"gopkg.in/urfave/cli.v1"
 )
 
 func readInputData(ctx *cli.Context) ([]byte, error) {
 	if !ctx.GlobalIsSet(fileInFlag.Name) {
-		return ioutil.ReadAll(os.Stdin)
+		return io.ReadAll(os.Stdin)
 	}
-	return ioutil.ReadFile(ctx.GlobalString(fileInFlag.Name))
+	return os.ReadFile(ctx.GlobalString(fileInFlag.Name))
 }
 
 func unmarshalChainSpec(format string, data []byte) (conf ctypes.Configurator, err error) {
@@ -48,8 +47,6 @@ func unmarshalChainSpec(format string, data []byte) (conf ctypes.Configurator, e
 	switch t := configurator.(type) {
 	case *genesisT.Genesis:
 		d.Config = t.Config
-	case *parity.ParityChainSpec:
-		// Don't need to do anything here; the Parity type already conforms to ChainConfigurator.
 	default:
 		return nil, fmt.Errorf("unhandled chainspec type: %v %v", format, t)
 	}

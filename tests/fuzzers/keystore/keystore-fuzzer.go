@@ -22,7 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
-func Fuzz(input []byte) int {
+func fuzz(input []byte) int {
 	ks := keystore.NewKeyStore("/tmp/ks", keystore.LightScryptN, keystore.LightScryptP)
 
 	a, err := ks.NewAccount(string(input))
@@ -33,5 +33,5 @@ func Fuzz(input []byte) int {
 		panic(err)
 	}
 	os.Remove(a.URL.Path)
-	return 0
+	return 1
 }

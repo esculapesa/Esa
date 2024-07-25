@@ -19,31 +19,28 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/internal/build"
 )
 
 // This file holds variable and type relating specifically
 // to the task of generating tests.
 
 var (
-	CG_GENERATE_STATE_TESTS_KEY      = "COREGETH_TESTS_GENERATE_STATE_TESTS"
-	CG_GENERATE_DIFFICULTY_TESTS_KEY = "COREGETH_TESTS_GENERATE_DIFFICULTY_TESTS"
+	CG_GENERATE_STATE_TESTS_KEY             = "COREGETH_TESTS_GENERATE_STATE_TESTS"
+	CG_GENERATE_DIFFICULTY_TESTS_KEY        = "COREGETH_TESTS_GENERATE_DIFFICULTY_TESTS"
+	CG_GENERATE_DIFFICULTY_TEST_CONFIGS_KEY = "COREGETH_TESTS_GENERATE_DIFFICULTY_TESTS_CONFIGS"
 
 	// Feature Equivalence tests use convert.Convert to
 	// run tests using alternating ChainConfig data type implementations.
-	CG_CHAINCONFIG_FEATURE_EQ_COREGETH_KEY     = "COREGETH_TESTS_CHAINCONFIG_FEATURE_EQUIVALENCE_COREGETH"
-	CG_CHAINCONFIG_FEATURE_EQ_MULTIGETHV0_KEY  = "COREGETH_TESTS_CHAINCONFIG_FEATURE_EQUIVALENCE_MULTIGETHV0"
-	CG_CHAINCONFIG_FEATURE_EQ_OPENETHEREUM_KEY = "COREGETH_TESTS_CHAINCONFIG_FEATURE_EQUIVALENCE_OPENETHEREUM"
+	CG_CHAINCONFIG_FEATURE_EQ_COREGETH_KEY = "COREGETH_TESTS_CHAINCONFIG_FEATURE_EQUIVALENCE_COREGETH"
 
 	CG_CHAINCONFIG_CONSENSUS_EQ_CLIQUE = "COREGETH_TESTS_CHAINCONFIG_CONSENSUS_EQUIVALENCE_CLIQUE"
 
-	// Parity specs tests use Parity JSON config data (in params/parity.json.d/)
+	// CG_CHAINCONFIG_CHAINSPECS_COREGETH_KEY uses core-geth config data (in params/core-geth.json.d)
 	// when applicable as equivalent config implementations for the default Go data type
 	// configs.
-	CG_CHAINCONFIG_CHAINSPECS_OPENETHEREUM_KEY = "COREGETH_TESTS_CHAINCONFIG_OPENETHEREUM_SPECS"
+	CG_CHAINCONFIG_CHAINSPECS_COREGETH_KEY = "COREGETH_TESTS_CHAINCONFIG_COREGETH_SPECS"
 )
 
 type chainspecRefsT map[string]chainspecRef
@@ -86,11 +83,3 @@ func (c chainspecRef) MarshalJSON() ([]byte, error) {
 
 	return json.MarshalIndent(x, "", "    ")
 }
-
-// submoduleParentRef captures the current git status of the tests submodule.
-// This is used for reference when writing tests.
-var submoduleParentRef = func() string {
-	subModOut := build.RunGit("submodule", "status")
-	subModOut = strings.ReplaceAll(strings.TrimSpace(subModOut), " ", "_")
-	return subModOut
-}()

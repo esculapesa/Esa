@@ -255,7 +255,7 @@ func TestTypeCheck(t *testing.T) {
 		{"bytes", nil, [2]byte{0, 1}, "abi: cannot use array as type slice as argument"},
 		{"bytes", nil, common.Hash{1}, "abi: cannot use array as type slice as argument"},
 		{"string", nil, "hello world", ""},
-		{"string", nil, string(""), ""},
+		{"string", nil, "", ""},
 		{"string", nil, []byte{}, "abi: cannot use slice as type string as argument"},
 		{"bytes32[]", nil, [][32]byte{{}}, ""},
 		{"function", nil, [24]byte{}, ""},
@@ -364,5 +364,12 @@ func TestGetTypeSize(t *testing.T) {
 		if result != data.typSize {
 			t.Errorf("case %d type %q: get type size error: actual: %d expected: %d", i, data.typ, result, data.typSize)
 		}
+	}
+}
+
+func TestNewFixedBytesOver32(t *testing.T) {
+	_, err := NewType("bytes4096", "", nil)
+	if err == nil {
+		t.Errorf("fixed bytes with size over 32 is not spec'd")
 	}
 }

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/les/flowcontrol"
 	"github.com/ethereum/go-ethereum/log"
@@ -128,7 +128,7 @@ type costTracker struct {
 	reqInfoCh       chan reqInfo
 	totalRechargeCh chan uint64
 
-	stats map[uint64][]uint64 // Used for testing purpose.
+	stats map[uint64][]atomic.Uint64 // Used for testing purpose.
 
 	// TestHooks
 	testing      bool            // Disable real cost evaluation for testing purpose.
@@ -137,7 +137,7 @@ type costTracker struct {
 
 // newCostTracker creates a cost tracker and loads the cost factor statistics from the database.
 // It also returns the minimum capacity that can be assigned to any peer.
-func newCostTracker(db ethdb.Database, config *eth.Config) (*costTracker, uint64) {
+func newCostTracker(db ethdb.Database, config *ethconfig.Config) (*costTracker, uint64) {
 	utilTarget := float64(config.LightServ) * flowcontrol.FixedPointMultiplier / 100
 	ct := &costTracker{
 		db:         db,
@@ -152,9 +152,9 @@ func newCostTracker(db ethdb.Database, config *eth.Config) (*costTracker, uint64
 		ct.outSizeFactor = utilTarget / float64(config.LightEgress)
 	}
 	if makeCostStats {
-		ct.stats = make(map[uint64][]uint64)
+		ct.stats = make(map[uint64][]atomic.Uint64)
 		for code := range reqAvgTimeCost {
-			ct.stats[code] = make([]uint64, 10)
+			ct.stats[code] = make([]atomic.Uint64, 10)
 		}
 	}
 	ct.gfLoop()
@@ -423,7 +423,7 @@ func (ct *costTracker) updateStats(code, amount, servingTime, realCost uint64) {
 			l++
 			realCost >>= 1
 		}
-		atomic.AddUint64(&ct.stats[code][l], 1)
+		ct.stats[code][l].Add(1)
 	}
 }
 
@@ -454,7 +454,7 @@ func (ct *costTracker) printStats() {
 		return
 	}
 	for code, arr := range ct.stats {
-		log.Info("Request cost statistics", "code", code, "1/16", arr[0], "1/8", arr[1], "1/4", arr[2], "1/2", arr[3], "1", arr[4], "2", arr[5], "4", arr[6], "8", arr[7], "16", arr[8], ">16", arr[9])
+		log.Info("Request cost statistics", "code", code, "1/16", arr[0].Load(), "1/8", arr[1].Load(), "1/4", arr[2].Load(), "1/2", arr[3].Load(), "1", arr[4].Load(), "2", arr[5].Load(), "4", arr[6].Load(), "8", arr[7].Load(), "16", arr[8].Load(), ">16", arr[9].Load())
 	}
 }
 

@@ -25,14 +25,24 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/internal/version"
 	"github.com/ethereum/go-ethereum/params"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli/v2"
 )
 
 var (
-	makecacheCommand = cli.Command{
-		Action:    utils.MigrateFlags(makecache),
+	VersionCheckUrlFlag = &cli.StringFlag{
+		Name:  "check.url",
+		Usage: "URL to use when checking vulnerabilities",
+		Value: "https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json",
+	}
+	VersionCheckVersionFlag = &cli.StringFlag{
+		Name:  "check.version",
+		Usage: "Version to check",
+		Value: version.ClientName(clientIdentifier),
+	}
+	makecacheCommand = &cli.Command{
+		Action:    makecache,
 		Name:      "makecache",
 		Usage:     "Generate ethash verification cache (for testing)",
 		ArgsUsage: "<blockNum> <outputDir>",
@@ -47,8 +57,8 @@ This command exists to support the system testing project.
 Regular users do not need to execute it.
 `,
 	}
-	makedagCommand = cli.Command{
-		Action:    utils.MigrateFlags(makedag),
+	makedagCommand = &cli.Command{
+		Action:    makedag,
 		Name:      "makedag",
 		Usage:     "Generate ethash mining DAG (for testing)",
 		ArgsUsage: "<blockNum> <outputDir>",
@@ -63,28 +73,40 @@ This command exists to support the system testing project.
 Regular users do not need to execute it.
 `,
 	}
-	versionCommand = cli.Command{
-		Action:    utils.MigrateFlags(version),
+	versionCommand = &cli.Command{
+		Action:    printVersion,
 		Name:      "version",
 		Usage:     "Print version numbers",
 		ArgsUsage: " ",
-		Category:  "MISCELLANEOUS COMMANDS",
 		Description: `
 The output of this command is supposed to be machine-readable.
 `,
 	}
-	licenseCommand = cli.Command{
-		Action:    utils.MigrateFlags(license),
+	versionCheckCommand = &cli.Command{
+		Action: versionCheck,
+		Flags: []cli.Flag{
+			VersionCheckUrlFlag,
+			VersionCheckVersionFlag,
+		},
+		Name:      "version-check",
+		Usage:     "Checks (online) for known Geth security vulnerabilities",
+		ArgsUsage: "<versionstring (optional)>",
+		Description: `
+The version-check command fetches vulnerability-information from https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json,
+and displays information about any security vulnerabilities that affect the currently executing version.
+`,
+	}
+	licenseCommand = &cli.Command{
+		Action:    license,
 		Name:      "license",
 		Usage:     "Display license information",
 		ArgsUsage: " ",
-		Category:  "MISCELLANEOUS COMMANDS",
 	}
 )
 
 // makecache generates an ethash verification cache into the provided folder.
 func makecache(ctx *cli.Context) error {
-	args := ctx.Args()
+	args := ctx.Args().Slice()
 	if len(args) != 2 {
 		utils.Fatalf(`Usage: geth makecache <block number> <outputdir>`)
 	}
@@ -102,7 +124,7 @@ func makecache(ctx *cli.Context) error {
 
 // makedag generates an ethash mining DAG into the provided folder.
 func makedag(ctx *cli.Context) error {
-	args := ctx.Args()
+	args := ctx.Args().Slice()
 	if len(args) != 2 {
 		utils.Fatalf(`Usage: geth makedag <block number> <outputdir>`)
 	}
@@ -118,21 +140,18 @@ func makedag(ctx *cli.Context) error {
 	return nil
 }
 
-func version(ctx *cli.Context) error {
-	versionClientIdentifier := clientIdentifier
-	if params.VersionName != "" {
-		versionClientIdentifier = params.VersionName
-	}
-	fmt.Println(strings.Title(versionClientIdentifier))
+func printVersion(ctx *cli.Context) error {
+	git, _ := version.VCS()
+
+	fmt.Println(strings.Title(clientIdentifier))
 	fmt.Println("Version:", params.VersionWithMeta)
-	if gitCommit != "" {
-		fmt.Println("Git Commit:", gitCommit)
+	if git.Commit != "" {
+		fmt.Println("Git Commit:", git.Commit)
 	}
-	if gitDate != "" {
-		fmt.Println("Git Commit Date:", gitDate)
+	if git.Date != "" {
+		fmt.Println("Git Commit Date:", git.Date)
 	}
 	fmt.Println("Architecture:", runtime.GOARCH)
-	fmt.Println("Protocol Versions:", eth.DefaultProtocolVersions)
 	fmt.Println("Go Version:", runtime.Version())
 	fmt.Println("Operating System:", runtime.GOOS)
 	fmt.Printf("GOPATH=%s\n", os.Getenv("GOPATH"))

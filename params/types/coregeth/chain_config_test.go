@@ -8,13 +8,14 @@ import (
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
 )
 
+// nolint:unused
 var testConfig = &CoreGethChainConfig{
 	NetworkID:  1,
 	Ethash:     new(ctypes.EthashConfig),
 	ChainID:    big.NewInt(61),
 	EIP2FBlock: big.NewInt(1150000),
 	EIP7FBlock: big.NewInt(1150000),
-	//DAOForkBlock:        big.NewInt(1920000),
+	// DAOForkBlock:        big.NewInt(1920000),
 	EIP150Block:        big.NewInt(2500000),
 	EIP155Block:        big.NewInt(3000000),
 	EIP160FBlock:       big.NewInt(3000000),
@@ -47,4 +48,44 @@ var testConfig = &CoreGethChainConfig{
 func TestCoreGethChainConfig_String(t *testing.T) {
 	t.Skip("(noop) development use only")
 	t.Log(testConfig.String())
+}
+
+func TestCoreGethChainConfig_ECBP1100Deactivate(t *testing.T) {
+	var _testConfig = &CoreGethChainConfig{}
+	*_testConfig = *testConfig
+
+	activate := uint64(100)
+	deactivate := uint64(200)
+	_testConfig.SetECBP1100Transition(&activate)
+	_testConfig.SetECBP1100DeactivateTransition(&deactivate)
+
+	n := uint64(10)
+	bigN := new(big.Int).SetUint64(n)
+	if _testConfig.IsEnabled(_testConfig.GetECBP1100Transition, bigN) {
+		t.Errorf("ECBP1100 should be not yet be activated at block %d", n)
+	}
+
+	n = uint64(100)
+	bigN = new(big.Int).SetUint64(n)
+	if !_testConfig.IsEnabled(_testConfig.GetECBP1100Transition, bigN) {
+		t.Errorf("ECBP1100 should be activated at block %d", n)
+	}
+
+	n = uint64(110)
+	bigN = new(big.Int).SetUint64(n)
+	if !_testConfig.IsEnabled(_testConfig.GetECBP1100Transition, bigN) {
+		t.Errorf("ECBP1100 should be activated at block %d", n)
+	}
+
+	n = uint64(200)
+	bigN = new(big.Int).SetUint64(n)
+	if _testConfig.IsEnabled(_testConfig.GetECBP1100Transition, bigN) {
+		t.Errorf("ECBP1100 should be deactivated at block %d", n)
+	}
+
+	n = uint64(210)
+	bigN = new(big.Int).SetUint64(n)
+	if _testConfig.IsEnabled(_testConfig.GetECBP1100Transition, bigN) {
+		t.Errorf("ECBP1100 should be deactivated at block %d", n)
+	}
 }

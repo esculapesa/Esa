@@ -20,10 +20,21 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"math/big"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 )
 
 func TestState(t *testing.T) {
@@ -39,69 +50,121 @@ func TestState(t *testing.T) {
 	st.slow(`^stStaticCall/static_Return50000`)
 	st.slow(`^stSystemOperationsTest/CallRecursiveBomb`)
 	st.slow(`^stTransactionTest/Opcodes_TransactionInit`)
-
 	// Very time consuming
 	st.skipLoad(`^stTimeConsuming/`)
+	st.skipLoad(`.*vmPerformance/loop.*`)
+
+	// Not state tests: configs
+	st.skipLoad(".*config.*")
 
 	// Uses 1GB RAM per tested fork
 	st.skipLoad(`^stStaticCall/static_Call1MB`)
+
+	st.skipLoad(`.*EOF1.*`)
 
 	if *testEWASM == "" {
 		st.skipLoad(`^stEWASM`)
 	}
 	if *testEVM != "" {
-
-		// These fail because these forks were not supported at this version of the EVMOne .so.
-		// The EVMOne version (0.2.0) is the latest EVMC v6 compatible version.
-		st.skipFork("Constantinople") // Only support
-		st.skipFork("Istanbul")
-		st.skipFork("ETC_Phoenix")
+		// These interpreters fail Constantinople (but pass ConstantinopleFix).
+		if strings.Contains(*testEVM, "aleth") || strings.Contains(*testEVM, "evmone") {
+			st.skipFork("^Constantinople$")
+		}
 
 		// These tests are noted as SLOW above, and they fail against the EVMOne.so
 		// So (get it?), skip 'em.
 		st.skipLoad(`^stQuadraticComplexityTest/`)
 		st.skipLoad(`^stStaticCall/static_Call50000`)
 	}
+	if *testEVM != "" || *testEWASM != "" {
+		// Berlin tests are not expected to pass for external EVMs, yet.
+		//
+		st.skipFork("Berlin")   // ETH
+		st.skipFork("Magneto")  // ETC
+		st.skipFork("London")   // ETH
+		st.skipFork("Mystique") // ETC
+		st.skipFork("Merge")    // ETH
+		st.skipFork("Shanghai") // ETH
+		st.skipFork("Spiral")   // ETC
+		st.skipFork("Cancun")   // ETH
+	}
+
+	// Un-skip this when https://github.com/ethereum/tests/issues/908 is closed
+	st.skipLoad(`^stQuadraticComplexityTest/QuadraticComplexitySolidity_CallDataCopy`)
 
 	// Broken tests:
+	// EOF is not part of cancun
+	st.skipLoad(`^stEOF/`)
+
+	// EIP-4844 tests need to be regenerated due to the data-to-blob rename
+	st.skipLoad(`^stEIP4844-blobtransactions/`)
+
 	// Expected failures:
-	//st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/Byzantium/0`, "bug in test")
-	//st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/Byzantium/3`, "bug in test")
-	//st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/Constantinople/0`, "bug in test")
-	//st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/Constantinople/3`, "bug in test")
-	//st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/ConstantinopleFix/0`, "bug in test")
-	//st.fails(`^stRevertTest/RevertPrecompiledTouch(_storage)?\.json/ConstantinopleFix/3`, "bug in test")
+	// These EIP-4844 tests need to be regenerated.
+	st.fails(`stEIP4844-blobtransactions/opcodeBlobhashOutOfRange.json`, "test has incorrect state root")
+	st.fails(`stEIP4844-blobtransactions/opcodeBlobhBounds.json`, "test has incorrect state root")
 
 	// For Istanbul, older tests were moved into LegacyTests
 	for _, dir := range []string{
+		filepath.Join(baseDir, "EIPTests", "StateTests"),
 		stateTestDir,
 		legacyStateTestDir,
+		benchmarksDir,
+
+		stateTestDirETC,
+		legacyTestDirETC,
 	} {
 		st.walk(t, dir, func(t *testing.T, name string, test *StateTest) {
 			for _, subtest := range test.Subtests(st.skipforkpat) {
 				subtest := subtest
 				key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
-				name := name + "/" + key
 
-				t.Run(key+"/trie", func(t *testing.T) {
+				t.Run(key+"/hash/trie", func(t *testing.T) {
 					withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
-						_, _, err := test.Run(subtest, vmconfig, false)
-						if err != nil && *testEWASM != "" {
-							err = fmt.Errorf("%v ewasm=%s", err, *testEWASM)
-						}
-						return st.checkFailure(t, name+"/trie", err)
+						var result error
+						test.Run(subtest, vmconfig, false, rawdb.HashScheme, func(err error, snaps *snapshot.Tree, state *state.StateDB) {
+							result = st.checkFailure(t, err)
+						})
+						return result
 					})
 				})
-				t.Run(key+"/snap", func(t *testing.T) {
+				t.Run(key+"/hash/snap", func(t *testing.T) {
 					withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
-						snaps, statedb, err := test.Run(subtest, vmconfig, true)
-						if _, err := snaps.Journal(statedb.IntermediateRoot(false)); err != nil {
-							return err
-						}
-						if err != nil && *testEWASM != "" {
-							err = fmt.Errorf("%v ewasm=%s", err, *testEWASM)
-						}
-						return st.checkFailure(t, name+"/snap", err)
+						var result error
+						test.Run(subtest, vmconfig, true, rawdb.HashScheme, func(err error, snaps *snapshot.Tree, state *state.StateDB) {
+							if snaps != nil && state != nil {
+								if _, err := snaps.Journal(state.IntermediateRoot(false)); err != nil {
+									result = err
+									return
+								}
+							}
+							result = st.checkFailure(t, err)
+						})
+						return result
+					})
+				})
+				t.Run(key+"/path/trie", func(t *testing.T) {
+					withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
+						var result error
+						test.Run(subtest, vmconfig, false, rawdb.PathScheme, func(err error, snaps *snapshot.Tree, state *state.StateDB) {
+							result = st.checkFailure(t, err)
+						})
+						return result
+					})
+				})
+				t.Run(key+"/path/snap", func(t *testing.T) {
+					withTrace(t, test.gasLimit(subtest), func(vmconfig vm.Config) error {
+						var result error
+						test.Run(subtest, vmconfig, true, rawdb.PathScheme, func(err error, snaps *snapshot.Tree, state *state.StateDB) {
+							if snaps != nil && state != nil {
+								if _, err := snaps.Journal(state.IntermediateRoot(false)); err != nil {
+									result = err
+									return
+								}
+							}
+							result = st.checkFailure(t, err)
+						})
+						return result
 					})
 				})
 			}
@@ -128,8 +191,7 @@ func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 	}
 	buf := new(bytes.Buffer)
 	w := bufio.NewWriter(buf)
-	tracer := vm.NewJSONLogger(&vm.LogConfig{DisableMemory: true}, w)
-	config.Debug, config.Tracer = true, tracer
+	config.Tracer = logger.NewJSONLogger(&logger.Config{}, w)
 	err2 := test(config)
 	if !reflect.DeepEqual(err, err2) {
 		t.Errorf("different error for second run: %v", err2)
@@ -140,6 +202,151 @@ func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 	} else {
 		t.Log("EVM operation log:\n" + buf.String())
 	}
-	//t.Logf("EVM output: 0x%x", tracer.Output())
-	//t.Logf("EVM error: %v", tracer.Error())
+	// t.Logf("EVM output: 0x%x", tracer.Output())
+	// t.Logf("EVM error: %v", tracer.Error())
+}
+
+func BenchmarkEVM(b *testing.B) {
+	// Walk the directory.
+	dir := benchmarksDir
+	dirinfo, err := os.Stat(dir)
+	if os.IsNotExist(err) || !dirinfo.IsDir() {
+		fmt.Fprintf(os.Stderr, "can't find test files in %s, did you clone the evm-benchmarks submodule?\n", dir)
+		b.Skip("missing test files")
+	}
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		if ext := filepath.Ext(path); ext == ".json" {
+			name := filepath.ToSlash(strings.TrimPrefix(strings.TrimSuffix(path, ext), dir+string(filepath.Separator)))
+			b.Run(name, func(b *testing.B) { runBenchmarkFile(b, path) })
+		}
+		return nil
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+}
+
+func runBenchmarkFile(b *testing.B, path string) {
+	m := make(map[string]StateTest)
+	if err := readJSONFile(path, &m); err != nil {
+		b.Fatal(err)
+		return
+	}
+	if len(m) != 1 {
+		b.Fatal("expected single benchmark in a file")
+		return
+	}
+	for _, t := range m {
+		t := t
+		runBenchmark(b, &t)
+	}
+}
+
+func runBenchmark(b *testing.B, t *StateTest) {
+	for _, subtest := range t.Subtests(nil) {
+		subtest := subtest
+		key := fmt.Sprintf("%s/%d", subtest.Fork, subtest.Index)
+
+		b.Run(key, func(b *testing.B) {
+			vmconfig := vm.Config{}
+
+			config, eips, err := GetChainConfig(subtest.Fork)
+			if err != nil {
+				b.Error(err)
+				return
+			}
+			vmconfig.ExtraEips = eips
+			block := core.GenesisToBlock(t.genesis(config), nil)
+			triedb, _, statedb := MakePreState(rawdb.NewMemoryDatabase(), t.json.Pre.toGenesisAlloc(), false, rawdb.HashScheme)
+			defer triedb.Close()
+
+			var baseFee *big.Int
+			if config.IsEnabled(config.GetEIP3529Transition, new(big.Int)) {
+				baseFee = t.json.Env.BaseFee
+				if baseFee == nil {
+					// Retesteth uses `0x10` for genesis baseFee. Therefore, it defaults to
+					// parent - 2 : 0xa as the basefee for 'this' context.
+					baseFee = big.NewInt(0x0a)
+				}
+			}
+			post := t.json.Post[subtest.Fork][subtest.Index]
+			msg, err := t.json.Tx.toMessage(post, baseFee)
+			if err != nil {
+				b.Error(err)
+				return
+			}
+
+			// Try to recover tx with current signer
+			if len(post.TxBytes) != 0 {
+				var ttx types.Transaction
+				err := ttx.UnmarshalBinary(post.TxBytes)
+				if err != nil {
+					b.Error(err)
+					return
+				}
+
+				if _, err := types.Sender(types.LatestSigner(config), &ttx); err != nil {
+					b.Error(err)
+					return
+				}
+			}
+
+			// Prepare the EVM.
+			txContext := core.NewEVMTxContext(msg)
+			context := core.NewEVMBlockContext(block.Header(), nil, &t.json.Env.Coinbase)
+			context.GetHash = vmTestBlockHash
+			context.BaseFee = baseFee
+			evm := vm.NewEVM(context, txContext, statedb, config, vmconfig)
+
+			// Create "contract" for sender to cache code analysis.
+			sender := vm.NewContract(vm.AccountRef(msg.From), vm.AccountRef(msg.From),
+				nil, 0)
+
+			var (
+				gasUsed uint64
+				elapsed uint64
+				refund  uint64
+
+				// Berlin
+				// https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/berlin.md
+				// EIP-2930: Optional access lists
+				eip2930f = config.IsEnabled(config.GetEIP2930Transition, evm.Context.BlockNumber)
+
+				// Shanghai
+				// EIP-3651: Warm coinbase
+				eip3651f = config.IsEnabledByTime(config.GetEIP3651TransitionTime, &evm.Context.Time) ||
+					config.IsEnabled(config.GetEIP3651Transition, evm.Context.BlockNumber)
+			)
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				snapshot := statedb.Snapshot()
+				statedb.Prepare(eip2930f, eip3651f, msg.From, context.Coinbase, msg.To, evm.ActivePrecompiles(), msg.AccessList)
+				b.StartTimer()
+				start := time.Now()
+
+				// Execute the message.
+				_, leftOverGas, err := evm.Call(sender, *msg.To, msg.Data, msg.GasLimit, msg.Value)
+				if err != nil {
+					b.Error(err)
+					return
+				}
+
+				b.StopTimer()
+				elapsed += uint64(time.Since(start))
+				refund += statedb.GetRefund()
+				gasUsed += msg.GasLimit - leftOverGas
+
+				statedb.RevertToSnapshot(snapshot)
+			}
+			if elapsed < 1 {
+				elapsed = 1
+			}
+			// Keep it as uint64, multiply 100 to get two digit float later
+			mgasps := (100 * 1000 * (gasUsed - refund)) / elapsed
+			b.ReportMetric(float64(mgasps)/100, "mgas/s")
+		})
+	}
 }

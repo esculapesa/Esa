@@ -42,6 +42,8 @@ type Configurator interface {
 }
 
 type ChainConfigurator interface {
+	String() string
+
 	ProtocolSpecifier
 	Forker
 	ConsensusEnginator // Consensus Engine
@@ -62,8 +64,15 @@ type ProtocolSpecifier interface {
 	SetNetworkID(n *uint64) error
 	GetChainID() *big.Int
 	SetChainID(i *big.Int) error
+	GetSupportedProtocolVersions() []uint
+	SetSupportedProtocolVersions(p []uint) error
 	GetMaxCodeSize() *uint64
 	SetMaxCodeSize(n *uint64) error
+
+	GetElasticityMultiplier() uint64
+	SetElasticityMultiplier(n uint64) error
+	GetBaseFeeChangeDenominator() uint64
+	SetBaseFeeChangeDenominator(n uint64) error
 
 	// Be careful with EIP2.
 	// It is a messy EIP, specifying diverse changes, like difficulty, intrinsic gas costs for contract creation,
@@ -130,18 +139,127 @@ type ProtocolSpecifier interface {
 	SetEIP1706Transition(n *uint64) error
 	GetEIP2537Transition() *uint64
 	SetEIP2537Transition(n *uint64) error
+
 	GetECBP1100Transition() *uint64
 	SetECBP1100Transition(n *uint64) error
+	GetECBP1100DeactivateTransition() *uint64
+	SetECBP1100DeactivateTransition(n *uint64) error
+
 	GetEIP2315Transition() *uint64
 	SetEIP2315Transition(n *uint64) error
+
+	// ModExp gas cost
+	GetEIP2565Transition() *uint64
+	SetEIP2565Transition(n *uint64) error
+
+	// Gas cost increases for state access opcodes
 	GetEIP2929Transition() *uint64
 	SetEIP2929Transition(n *uint64) error
+
+	// Optional access lists
+	GetEIP2930Transition() *uint64
+	SetEIP2930Transition(n *uint64) error
+
+	// Typed transaction envelope
+	GetEIP2718Transition() *uint64
+	SetEIP2718Transition(n *uint64) error
+
+	GetEIP1559Transition() *uint64
+	SetEIP1559Transition(n *uint64) error
+
+	GetEIP3541Transition() *uint64
+	SetEIP3541Transition(n *uint64) error
+
+	GetEIP3529Transition() *uint64
+	SetEIP3529Transition(n *uint64) error
+
+	GetEIP3198Transition() *uint64
+	SetEIP3198Transition(n *uint64) error
+
+	// EIP4399 is the RANDOM opcode.
+	// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4399.md
+	GetEIP4399Transition() *uint64
+	SetEIP4399Transition(n *uint64) error
+
+	// Shanghai:
+	//
+	// EIP3651: Warm COINBASE
+	GetEIP3651TransitionTime() *uint64
+	SetEIP3651TransitionTime(n *uint64) error
+	// EIP3855: PUSH0 instruction
+	GetEIP3855TransitionTime() *uint64
+	SetEIP3855TransitionTime(n *uint64) error
+	// EIP3860: Limit and meter initcode
+	GetEIP3860TransitionTime() *uint64
+	SetEIP3860TransitionTime(n *uint64) error
+	// EIP4895: Beacon chain push withdrawals as operations
+	GetEIP4895TransitionTime() *uint64
+	SetEIP4895TransitionTime(n *uint64) error
+	// EIP6049: Deprecate SELFDESTRUCT
+	GetEIP6049TransitionTime() *uint64
+	SetEIP6049TransitionTime(n *uint64) error
+
+	// Shanghai expressed as block activation numbers:
+	GetEIP3651Transition() *uint64
+	SetEIP3651Transition(n *uint64) error
+	GetEIP3855Transition() *uint64
+	SetEIP3855Transition(n *uint64) error
+	GetEIP3860Transition() *uint64
+	SetEIP3860Transition(n *uint64) error
+	GetEIP4895Transition() *uint64
+	SetEIP4895Transition(n *uint64) error
+	GetEIP6049Transition() *uint64
+	SetEIP6049Transition(n *uint64) error
+
+	// GetMergeVirtualTransition is a Virtual fork after The Merge to use as a network splitter
+	GetMergeVirtualTransition() *uint64
+	SetMergeVirtualTransition(n *uint64) error
+
+	// Cancun:
+	// EIP4844 - Shard Blob Transactions - https://eips.ethereum.org/EIPS/eip-4844
+	GetEIP4844TransitionTime() *uint64
+	SetEIP4844TransitionTime(n *uint64) error
+
+	// EIP7516 - Blob Base Fee Opcode - https://eips.ethereum.org/EIPS/eip-7516
+	GetEIP7516TransitionTime() *uint64
+	SetEIP7516TransitionTime(n *uint64) error
+
+	// EIP1153 - Transient Storage opcodes - https://eips.ethereum.org/EIPS/eip-1153
+	GetEIP1153TransitionTime() *uint64
+	SetEIP1153TransitionTime(n *uint64) error
+
+	// EIP5656 - MCOPY - Memory copying instruction - https://eips.ethereum.org/EIPS/eip-5656
+	GetEIP5656TransitionTime() *uint64
+	SetEIP5656TransitionTime(n *uint64) error
+
+	// EIP6780 - SELFDESTRUCT only in same transaction - https://eips.ethereum.org/EIPS/eip-6780
+	GetEIP6780TransitionTime() *uint64
+	SetEIP6780TransitionTime(n *uint64) error
+
+	// EIP4788 - Beacon block root in the EVM
+	GetEIP4788TransitionTime() *uint64
+	SetEIP4788TransitionTime(n *uint64) error
+
+	// Cancun expressed as block activation numbers:
+	GetEIP4844Transition() *uint64
+	SetEIP4844Transition(n *uint64) error
+	GetEIP7516Transition() *uint64
+	SetEIP7516Transition(n *uint64) error
+	GetEIP1153Transition() *uint64
+	SetEIP1153Transition(n *uint64) error
+	GetEIP5656Transition() *uint64
+	SetEIP5656Transition(n *uint64) error
+	GetEIP6780Transition() *uint64
+	SetEIP6780Transition(n *uint64) error
+	GetEIP4788Transition() *uint64
+	SetEIP4788Transition(n *uint64) error
 }
 
 type Forker interface {
 	// IsEnabled tells if interface has met or exceeded a fork block number.
 	// eg. IsEnabled(c.GetEIP1108Transition, big.NewInt(42)))
 	IsEnabled(fn func() *uint64, n *big.Int) bool
+	IsEnabledByTime(fn func() *uint64, n *uint64) bool
 
 	// ForkCanonHash yields arbitrary number/hash pairs.
 	// This is an abstraction derived from the original EIP150 implementation.
@@ -153,8 +271,12 @@ type Forker interface {
 type ConsensusEnginator interface {
 	GetConsensusEngineType() ConsensusEngineT
 	MustSetConsensusEngineType(t ConsensusEngineT) error
+	GetIsDevMode() bool
+	SetDevMode(devMode bool) error
+
 	EthashConfigurator
 	CliqueConfigurator
+	Lyra2Configurator
 }
 
 type EthashConfigurator interface {
@@ -179,6 +301,10 @@ type EthashConfigurator interface {
 	SetEthashEIP1234Transition(n *uint64) error
 	GetEthashEIP2384Transition() *uint64
 	SetEthashEIP2384Transition(n *uint64) error
+	GetEthashEIP3554Transition() *uint64
+	SetEthashEIP3554Transition(n *uint64) error
+	GetEthashEIP4345Transition() *uint64
+	SetEthashEIP4345Transition(n *uint64) error
 	GetEthashECIP1010PauseTransition() *uint64
 	SetEthashECIP1010PauseTransition(n *uint64) error
 	GetEthashECIP1010ContinueTransition() *uint64
@@ -193,6 +319,16 @@ type EthashConfigurator interface {
 	SetEthashECIP1041Transition(n *uint64) error
 	GetEthashECIP1099Transition() *uint64
 	SetEthashECIP1099Transition(n *uint64) error
+	GetEthashEIP5133Transition() *uint64 // Gray Glacier difficulty bomb delay
+	SetEthashEIP5133Transition(n *uint64) error
+
+	GetEthashTerminalTotalDifficulty() *big.Int
+	SetEthashTerminalTotalDifficulty(n *big.Int) error
+
+	GetEthashTerminalTotalDifficultyPassed() bool
+	SetEthashTerminalTotalDifficultyPassed(t bool) error
+
+	IsTerminalPoWBlock(parentTotalDiff *big.Int, totalDiff *big.Int) bool
 
 	GetEthashDifficultyBombDelaySchedule() Uint64BigMapEncodesHex
 	SetEthashDifficultyBombDelaySchedule(m Uint64BigMapEncodesHex) error
@@ -205,6 +341,11 @@ type CliqueConfigurator interface {
 	SetCliquePeriod(n uint64) error
 	GetCliqueEpoch() uint64
 	SetCliqueEpoch(n uint64) error
+}
+
+type Lyra2Configurator interface {
+	GetLyra2NonceTransition() *uint64
+	SetLyra2NonceTransition(n *uint64) error
 }
 
 type BlockSealer interface {

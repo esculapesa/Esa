@@ -20,9 +20,31 @@ var errReorgFinality = errors.New("finality-enforced invalid new chain")
 // n  = 1 : ON
 // n != 1 : OFF
 func (bc *BlockChain) ArtificialFinalityNoDisable(n int32) {
-	log.Warn("Deactivating ECBP1100 (MESS) disablers", "always on", true)
+	log.Warn("Deactivating ECBP1100 (MESS) safety mechanisms", "always on", true)
 	bc.artificialFinalityNoDisable = new(int32)
 	atomic.StoreInt32(bc.artificialFinalityNoDisable, n)
+
+	if n == 1 {
+		deactivateTransition := bc.chainConfig.GetECBP1100DeactivateTransition()
+		if deactivateTransition != nil && big.NewInt(int64(*deactivateTransition)).Cmp(big.NewInt(0)) > 0 {
+			// Log the activation block as well as the deactivation block.
+			// Context is nice to have for the user.
+			var logActivationBlock uint64
+			logActivationBlockRaw := bc.chainConfig.GetECBP1100Transition()
+			if logActivationBlockRaw == nil {
+				// panic("impossible")
+				logActivationBlock = *deactivateTransition
+			} else {
+				logActivationBlock = *logActivationBlockRaw
+			}
+
+			log.Warn(`Deactivate-ECBP1100 (MESS) block activation number is set together with '--ecbp1100.nodisable'.
+The --ecbp1100.nodisable feature prevents the toggling of ECBP1100 (MESS) artificial finality with its safety mechanisms of low peer count and stale head.
+ECBP1100 (MESS) is scheduled for network-wide deactivation, rendering the --ecbp1100.nodisable feature anachronistic.
+`, "ECBP1100 activation block", logActivationBlock,
+				"ECBP1100 deactivation block", *deactivateTransition)
+		}
+	}
 }
 
 // EnableArtificialFinality enables and disable artificial finality features for the blockchain.
@@ -70,6 +92,7 @@ func (bc *BlockChain) IsArtificialFinalityEnabled() bool {
 
 // getTDRatio is a helper function returning the total difficulty ratio of
 // proposed over current chain segments.
+// nolint:unused
 func (bc *BlockChain) getTDRatio(commonAncestor, current, proposed *types.Header) float64 {
 	// Get the total difficulty ratio of the proposed chain segment over the existing one.
 	commonAncestorTD := bc.GetTd(commonAncestor.Hash(), commonAncestor.Number.Uint64())
@@ -89,13 +112,12 @@ func (bc *BlockChain) getTDRatio(commonAncestor, current, proposed *types.Header
 // ecbp1100 implements the "MESS" artificial finality mechanism
 // "Modified Exponential Subjective Scoring" used to prefer known chain segments
 // over later-to-come counterparts, especially proposed segments stretching far into the past.
-func (bc *BlockChain) ecbp1100(commonAncestor, current, proposed *types.Header) error {
-
+func ecbp1100(commonAncestor, current, proposed *types.Header, getTDFunc func(common.Hash, uint64) *big.Int) error {
 	// Get the total difficulties of the proposed chain segment and the existing one.
-	commonAncestorTD := bc.GetTd(commonAncestor.Hash(), commonAncestor.Number.Uint64())
-	proposedParentTD := bc.GetTd(proposed.ParentHash, proposed.Number.Uint64()-1)
+	commonAncestorTD := getTDFunc(commonAncestor.Hash(), commonAncestor.Number.Uint64())
+	proposedParentTD := getTDFunc(proposed.ParentHash, proposed.Number.Uint64()-1)
 	proposedTD := new(big.Int).Add(proposed.Difficulty, proposedParentTD)
-	localTD := bc.GetTd(current.Hash(), current.Number.Uint64())
+	localTD := getTDFunc(current.Hash(), current.Number.Uint64())
 
 	// if proposed_subchain_td * CURVE_FUNCTION_DENOMINATOR < get_curve_function_numerator(proposed.Time - commonAncestor.Time) * local_subchain_td.
 	proposedSubchainTD := new(big.Int).Sub(proposedTD, commonAncestorTD)
@@ -147,8 +169,8 @@ The if tdRatio < antiGravity check would then be
 
 if proposed_subchain_td * CURVE_FUNCTION_DENOMINATOR < get_curve_function_numerator(current.Time - commonAncestor.Time) * local_subchain_td.
 */
+// nolint:goimports
 func ecbp1100PolynomialV(x *big.Int) *big.Int {
-
 	// Make a copy; do not mutate argument value.
 
 	// if x > xcap:
@@ -215,7 +237,6 @@ ecbp1100AGSinusoidalA is a sinusoidal function.
 
 OPTION 3: Yet slower takeoff, yet steeper eventual ascent. Has a differentiable ceiling transition.
 h(x)=15 sin((x+12000 π)/(8000))+15+1
-
 */
 func ecbp1100AGSinusoidalA(x float64) (antiGravity float64) {
 	ampl := float64(15)   // amplitude
@@ -235,6 +256,7 @@ ecbp1100AGExpB is an exponential function with x as a base (and rationalized exp
 OPTION 2: Slightly slower takeoff, steeper eventual ascent
 g(x)=x^(x*0.00002)
 */
+//nolint:deadcode,unused
 func ecbp1100AGExpB(x float64) (antiGravity float64) {
 	return math.Pow(x, x*0.00002)
 }
@@ -251,6 +273,7 @@ This was (one of?) Vitalik's "original" specs:
 OPTION 1 (Original ESS)
 f(x)=1.0001^(x)
 */
+//nolint:unused
 func ecbp1100AGExpA(x float64) (antiGravity float64) {
 	return math.Pow(1.0001, x)
 }

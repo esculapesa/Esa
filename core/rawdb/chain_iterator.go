@@ -1,4 +1,4 @@
-// Copyright 2019 The go-ethereum Authors
+// Copyright 2020 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -23,10 +23,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"golang.org/x/crypto/sha3"
 )
 
 // InitDatabaseFromFreezer reinitializes an empty database from a previous batch
@@ -44,24 +44,29 @@ func InitDatabaseFromFreezer(db ethdb.Database) {
 		logged = start.Add(-7 * time.Second) // Unindex during import is fast, don't double log
 		hash   common.Hash
 	)
-	for i := uint64(0); i < frozen; i++ {
-		// Since the freezer has all data in sequential order on a file,
-		// it would be 'neat' to read more data in one go, and let the
-		// freezerdb return N items (e.g up to 1000 items per go)
-		// That would require an API change in Ancients though
-		if h, err := db.Ancient(freezerHashTable, i); err != nil {
+	for i := uint64(0); i < frozen; {
+		// We read 100K hashes at a time, for a total of 3.2M
+		count := uint64(100_000)
+		if i+count > frozen {
+			count = frozen - i
+		}
+		data, err := db.AncientRange(ChainFreezerHashTable, i, count, 32*count)
+		if err != nil {
 			log.Crit("Failed to init database from freezer", "err", err)
-		} else {
+		}
+		for j, h := range data {
+			number := i + uint64(j)
 			hash = common.BytesToHash(h)
-		}
-		WriteHeaderNumber(batch, hash, i)
-		// If enough data was accumulated in memory or we're at the last block, dump to disk
-		if batch.ValueSize() > ethdb.IdealBatchSize {
-			if err := batch.Write(); err != nil {
-				log.Crit("Failed to write data to db", "err", err)
+			WriteHeaderNumber(batch, hash, number)
+			// If enough data was accumulated in memory or we're at the last block, dump to disk
+			if batch.ValueSize() > ethdb.IdealBatchSize {
+				if err := batch.Write(); err != nil {
+					log.Crit("Failed to write data to db", "err", err)
+				}
+				batch.Reset()
 			}
-			batch.Reset()
 		}
+		i += uint64(len(data))
 		// If we've spent too much time already, notify the user of what we're doing
 		if time.Since(logged) > 8*time.Second {
 			log.Info("Initializing database from freezer", "total", frozen, "number", i, "hash", hash, "elapsed", common.PrettyDuration(time.Since(start)))
@@ -127,40 +132,24 @@ func iterateTransactions(db ethdb.Database, from uint64, to uint64, reverse bool
 		}
 	}
 	// process runs in parallel
-	nThreadsAlive := int32(threads)
+	var nThreadsAlive atomic.Int32
+	nThreadsAlive.Store(int32(threads))
 	process := func() {
 		defer func() {
 			// Last processor closes the result channel
-			if atomic.AddInt32(&nThreadsAlive, -1) == 0 {
+			if nThreadsAlive.Add(-1) == 0 {
 				close(hashesCh)
 			}
 		}()
-
-		var hasher = sha3.NewLegacyKeccak256()
 		for data := range rlpCh {
-			it, err := rlp.NewListIterator(data.rlp)
-			if err != nil {
-				log.Warn("tx iteration error", "error", err)
-				return
-			}
-			it.Next()
-			txs := it.Value()
-			txIt, err := rlp.NewListIterator(txs)
-			if err != nil {
-				log.Warn("tx iteration error", "error", err)
+			var body types.Body
+			if err := rlp.DecodeBytes(data.rlp, &body); err != nil {
+				log.Warn("Failed to decode block body", "block", data.number, "error", err)
 				return
 			}
 			var hashes []common.Hash
-			for txIt.Next() {
-				if err := txIt.Err(); err != nil {
-					log.Warn("tx iteration error", "error", err)
-					return
-				}
-				var txHash common.Hash
-				hasher.Reset()
-				hasher.Write(txIt.Value())
-				hasher.Sum(txHash[:0])
-				hashes = append(hashes, txHash)
+			for _, tx := range body.Transactions {
+				hashes = append(hashes, tx.Hash())
 			}
 			result := &blockTxHashes{
 				hashes: hashes,
@@ -203,7 +192,7 @@ func indexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan
 		// in to be [to-1]. Therefore, setting lastNum to means that the
 		// prqueue gap-evaluation will work correctly
 		lastNum = to
-		queue   = prque.New(nil)
+		queue   = prque.New[int64, *blockTxHashes](nil)
 		// for stats reporting
 		blocks, txs = 0, 0
 	)
@@ -222,7 +211,7 @@ func indexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan
 				break
 			}
 			// Next block available, pop it off and index it
-			delivery := queue.PopItem().(*blockTxHashes)
+			delivery := queue.PopItem()
 			lastNum = delivery.number
 			WriteTxLookupEntries(batch, delivery.number, delivery.hashes)
 			blocks++
@@ -243,23 +232,24 @@ func indexTransactions(db ethdb.Database, from uint64, to uint64, interrupt chan
 			}
 		}
 	}
-	// If there exists uncommitted data, flush them.
-	if batch.ValueSize() > 0 {
-		WriteTxIndexTail(batch, lastNum) // Also write the tail there
-		if err := batch.Write(); err != nil {
-			log.Crit("Failed writing batch to db", "error", err)
-			return
-		}
+	// Flush the new indexing tail and the last committed data. It can also happen
+	// that the last batch is empty because nothing to index, but the tail has to
+	// be flushed anyway.
+	WriteTxIndexTail(batch, lastNum)
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed writing batch to db", "error", err)
+		return
 	}
 	select {
 	case <-interrupt:
 		log.Debug("Transaction indexing interrupted", "blocks", blocks, "txs", txs, "tail", lastNum, "elapsed", common.PrettyDuration(time.Since(start)))
 	default:
-		log.Info("Indexed transactions", "blocks", blocks, "txs", txs, "tail", lastNum, "elapsed", common.PrettyDuration(time.Since(start)))
+		log.Debug("Indexed transactions", "blocks", blocks, "txs", txs, "tail", lastNum, "elapsed", common.PrettyDuration(time.Since(start)))
 	}
 }
 
-// IndexTransactions creates txlookup indices of the specified block range.
+// IndexTransactions creates txlookup indices of the specified block range. The from
+// is included while to is excluded.
 //
 // This function iterates canonical chain in reverse order, it has one main advantage:
 // We can write tx index tail flag periodically even without the whole indexing
@@ -293,7 +283,7 @@ func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt ch
 		// we expect the first number to come in to be [from]. Therefore, setting
 		// nextNum to from means that the prqueue gap-evaluation will work correctly
 		nextNum = from
-		queue   = prque.New(nil)
+		queue   = prque.New[int64, *blockTxHashes](nil)
 		// for stats reporting
 		blocks, txs = 0, 0
 	)
@@ -310,7 +300,7 @@ func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt ch
 			if hook != nil && !hook(nextNum) {
 				break
 			}
-			delivery := queue.PopItem().(*blockTxHashes)
+			delivery := queue.PopItem()
 			nextNum = delivery.number + 1
 			DeleteTxLookupEntries(batch, delivery.hashes)
 			txs += len(delivery.hashes)
@@ -334,23 +324,24 @@ func unindexTransactions(db ethdb.Database, from uint64, to uint64, interrupt ch
 			}
 		}
 	}
-	// Commit the last batch if there exists uncommitted data
-	if batch.ValueSize() > 0 {
-		WriteTxIndexTail(batch, nextNum)
-		if err := batch.Write(); err != nil {
-			log.Crit("Failed writing batch to db", "error", err)
-			return
-		}
+	// Flush the new indexing tail and the last committed data. It can also happen
+	// that the last batch is empty because nothing to unindex, but the tail has to
+	// be flushed anyway.
+	WriteTxIndexTail(batch, nextNum)
+	if err := batch.Write(); err != nil {
+		log.Crit("Failed writing batch to db", "error", err)
+		return
 	}
 	select {
 	case <-interrupt:
 		log.Debug("Transaction unindexing interrupted", "blocks", blocks, "txs", txs, "tail", to, "elapsed", common.PrettyDuration(time.Since(start)))
 	default:
-		log.Info("Unindexed transactions", "blocks", blocks, "txs", txs, "tail", to, "elapsed", common.PrettyDuration(time.Since(start)))
+		log.Debug("Unindexed transactions", "blocks", blocks, "txs", txs, "tail", to, "elapsed", common.PrettyDuration(time.Since(start)))
 	}
 }
 
 // UnindexTransactions removes txlookup indices of the specified block range.
+// The from is included while to is excluded.
 //
 // There is a passed channel, the whole procedure will be interrupted if any
 // signal received.

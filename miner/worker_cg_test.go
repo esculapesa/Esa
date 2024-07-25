@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/params/types/coregeth"
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
 	"github.com/ethereum/go-ethereum/params/types/goethereum"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 func testGenerateBlockAndImportCG(t *testing.T, chainConfig ctypes.ChainConfigurator, numBlocks int) {
@@ -45,8 +46,8 @@ func testGenerateBlockAndImportCG(t *testing.T, chainConfig ctypes.ChainConfigur
 
 	// This test chain imports the mined blocks.
 	db2 := rawdb.NewMemoryDatabase()
-	core.MustCommitGenesis(db2, b.genesis)
-	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil)
+	core.MustCommitGenesis(db2, trie.NewDatabase(db2, nil), b.genesis)
+	chain, _ := core.NewBlockChain(db2, nil, b.genesis, nil, engine, vm.Config{}, nil, nil)
 	defer chain.Stop()
 
 	// Ignore empty commit here for less noise.
@@ -62,8 +63,8 @@ func testGenerateBlockAndImportCG(t *testing.T, chainConfig ctypes.ChainConfigur
 	w.start()
 
 	for i := 0; i < numBlocks; i++ {
-		b.txPool.AddLocal(b.newRandomTx(true))
-		b.txPool.AddLocal(b.newRandomTx(false))
+		b.txPool.Add([]*types.Transaction{b.newRandomTx(true)}, true, false)
+		b.txPool.Add([]*types.Transaction{b.newRandomTx(false)}, true, false)
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 
@@ -113,7 +114,6 @@ func TestGenerateBlockAndImport_CG1(t *testing.T) {
 					PetersburgBlock:         big.NewInt(6),
 					IstanbulBlock:           big.NewInt(7),
 					MuirGlacierBlock:        big.NewInt(8),
-					YoloV2Block:             nil,
 					EWASMBlock:              nil,
 					Ethash:                  new(ctypes.EthashConfig),
 					Clique:                  nil,
@@ -144,7 +144,6 @@ func TestGenerateBlockAndImport_CG1(t *testing.T) {
 					PetersburgBlock:         big.NewInt(6),
 					IstanbulBlock:           big.NewInt(7),
 					MuirGlacierBlock:        big.NewInt(8),
-					YoloV2Block:             nil,
 					EWASMBlock:              nil,
 					Ethash:                  new(ctypes.EthashConfig),
 					Clique:                  nil,

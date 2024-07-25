@@ -7,7 +7,7 @@
 
 | Entity | Version |
 | --- | --- |
-| Source | <code>1.11.22-unstable/generated-at:2021-01-23T04:50:40-06:00</code> |
+| Source | <code>1.12.14-unstable/generated-at:2023-09-04T08:02:34-06:00</code> |
 | OpenRPC | <code>1.2.6</code> |
 
 ---
@@ -15,91 +15,14 @@
 
 
 
-### miner_getHashrate
-
-GetHashrate returns the current hashrate of the miner.
-
-
-#### Params (0)
-
-_None_
-
-#### Result
-
-
-
-
-<code>uint64</code> 
-
-  + Required: ✓ Yes
-
- 
-=== "Schema"
-
-	``` Schema
-	
-	- description: `Hex representation of the integer`
-	- pattern: `^0x[a-fA-F0-9]+$`
-	- title: `integer`
-	- type: string
-
-
-	```
-
-=== "Raw"
-
-	``` Raw
-	{
-        "description": "Hex representation of the integer",
-        "pattern": "^0x[a-fA-F0-9]+$",
-        "title": "integer",
-        "type": [
-            "string"
-        ]
-    }
-	```
-
-
-
-#### Client Method Invocation Examples
-
-=== "Shell"
-
-	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_getHashrate", "params": []}'
-	```
-
-=== "Javascript Console"
-
-	``` js
-	miner.getHashrate();
-	```
-
-
-<details><summary>Source code</summary>
-<p>
-```go
-func (api *PrivateMinerAPI) GetHashrate() uint64 {
-	return api.e.miner.HashRate()
-}// GetHashrate returns the current hashrate of the miner.
-
-```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L153" target="_">View on GitHub →</a>
-</p>
-</details>
-
----
-
-
-
 ### miner_setEtherbase
 
-SetEtherbase sets the etherbase of the miner
+SetEtherbase sets the etherbase of the miner.
 
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -107,7 +30,7 @@ etherbase <code>common.Address</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -151,11 +74,23 @@ etherbase <code>common.Address</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_setEtherbase", "params": [<etherbase>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_setEtherbase", "params": [<etherbase>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_setEtherbase", "params": [<etherbase>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -164,16 +99,17 @@ etherbase <code>common.Address</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateMinerAPI) SetEtherbase(etherbase common.Address) bool {
+func (api *MinerAPI) SetEtherbase(etherbase common.Address) bool {
 	api.e.SetEtherbase(etherbase)
 	return true
-}// SetEtherbase sets the etherbase of the miner
+}// SetEtherbase sets the etherbase of the miner.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L142" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L81" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -188,7 +124,7 @@ SetExtra sets the extra data string that is included when this miner mines a blo
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -215,11 +151,23 @@ extra <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_setExtra", "params": [<extra>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_setExtra", "params": [<extra>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_setExtra", "params": [<extra>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -228,10 +176,11 @@ extra <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateMinerAPI) SetExtra(extra string) (bool, error) {
+func (api *MinerAPI) SetExtra(extra string) (bool, error) {
 	if err := api.e.Miner().SetExtra([ // SetExtra sets the extra data string that is included when this miner mines a block.
 	]byte(extra)); err != nil {
 		return false, err
@@ -239,7 +188,109 @@ func (api *PrivateMinerAPI) SetExtra(extra string) (bool, error) {
 	return true, nil
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L124" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L57" target="_">View on GitHub →</a>
+</p>
+</details>
+
+---
+
+
+
+### miner_setGasLimit
+
+SetGasLimit sets the gaslimit to target towards during mining.
+
+
+#### Params (1)
+
+Parameters must be given _by position_.
+
+
+__1:__ 
+gasLimit <code>hexutil.Uint64</code> 
+
+  + Required: ✓ Yes
+
+
+=== "Schema"
+
+	``` Schema
+	
+	- description: `Hex representation of a uint64`
+	- pattern: `^0x([a-fA-F\d])+$`
+	- title: `uint64`
+	- type: string
+
+
+	```
+
+=== "Raw"
+
+	``` Raw
+	{
+        "description": "Hex representation of a uint64",
+        "pattern": "^0x([a-fA-F\\d])+$",
+        "title": "uint64",
+        "type": [
+            "string"
+        ]
+    }
+	```
+
+
+
+
+
+#### Result
+
+
+
+
+<code>bool</code> 
+
+  + Required: ✓ Yes
+
+
+
+
+#### Client Method Invocation Examples
+
+
+=== "Shell HTTP"
+
+	``` shell
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_setGasLimit", "params": [<gasLimit>]}'
+	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_setGasLimit", "params": [<gasLimit>]}'
+	```
+
+
+=== "Javascript Console"
+
+	``` js
+	miner.setGasLimit(gasLimit);
+	```
+
+
+
+<details><summary>Source code</summary>
+<p>
+```go
+func (api *MinerAPI) SetGasLimit(gasLimit hexutil.Uint64) bool {
+	api.e.Miner().SetGasCeil(uint64(gasLimit))
+	return true
+}// SetGasLimit sets the gaslimit to target towards during mining.
+
+```
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L75" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -254,7 +305,7 @@ SetGasPrice sets the minimum accepted gas price for the miner.
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -262,7 +313,7 @@ gasPrice <code>hexutil.Big</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -306,11 +357,23 @@ gasPrice <code>hexutil.Big</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_setGasPrice", "params": [<gasPrice>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_setGasPrice", "params": [<gasPrice>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_setGasPrice", "params": [<gasPrice>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -319,19 +382,20 @@ gasPrice <code>hexutil.Big</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateMinerAPI) SetGasPrice(gasPrice hexutil.Big) bool {
+func (api *MinerAPI) SetGasPrice(gasPrice hexutil.Big) bool {
 	api.e.lock.Lock()
 	api.e.gasPrice = (*big.Int)(&gasPrice)
 	api.e.lock.Unlock()
-	api.e.txPool.SetGasPrice((*big.Int)(&gasPrice))
+	api.e.txPool.SetGasTip((*big.Int)(&gasPrice))
 	return true
 }// SetGasPrice sets the minimum accepted gas price for the miner.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L132" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L65" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -346,7 +410,7 @@ SetRecommitInterval updates the interval for miner sealing work recommitting.
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -354,7 +418,7 @@ interval <code>int</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -390,11 +454,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_setRecommitInterval", "params": [<interval>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_setRecommitInterval", "params": [<interval>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_setRecommitInterval", "params": [<interval>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -403,15 +479,16 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateMinerAPI) SetRecommitInterval(interval int) {
+func (api *MinerAPI) SetRecommitInterval(interval int) {
 	api.e.Miner().SetRecommitInterval(time.Duration(interval) * time.Millisecond)
 }// SetRecommitInterval updates the interval for miner sealing work recommitting.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L148" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L87" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -430,7 +507,7 @@ transaction pool.
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -438,7 +515,7 @@ threads <code>*int</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -474,11 +551,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_start", "params": [<threads>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_start", "params": [<threads>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_start", "params": [<threads>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -487,10 +576,11 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateMinerAPI) Start(threads *int) error {
+func (api *MinerAPI) Start(threads *int) error {
 	if threads == nil {
 		return api.e.StartMining(runtime.NumCPU())
 	}
@@ -502,7 +592,7 @@ func (api *PrivateMinerAPI) Start(threads *int) error {
 // transaction pool.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L110" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L43" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -526,11 +616,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "miner_stop", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "miner_stop", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "miner_stop", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -539,16 +641,17 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (api *PrivateMinerAPI) Stop() {
+func (api *MinerAPI) Stop() {
 	api.e.StopMining()
 }// Stop terminates the miner, both at the consensus engine level as well as at
 // the block creation level.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/eth/api.go#L119" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/eth/api_miner.go#L52" target="_">View on GitHub →</a>
 </p>
 </details>
 

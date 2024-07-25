@@ -20,6 +20,7 @@ package miner
 import (
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,56 +28,76 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
 	"github.com/ethereum/go-ethereum/params/vars"
 )
 
-// Backend wraps all methods required for mining.
+// Backend wraps all methods required for mining. Only full node is capable
+// to offer all the functions here.
 type Backend interface {
 	BlockChain() *core.BlockChain
-	TxPool() *core.TxPool
+	TxPool() *txpool.TxPool
 }
 
 // Config is the configuration parameters of mining.
 type Config struct {
-	Etherbase common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account)
-	Notify    []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages(only useful in ethash).
-	ExtraData hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
-	GasFloor  uint64         // Target gas floor for mined blocks.
-	GasCeil   uint64         // Target gas ceiling for mined blocks.
-	GasPrice  *big.Int       // Minimum gas price for mining a transaction
-	Recommit  time.Duration  // The time interval for miner to re-create mining work.
-	Noverify  bool           // Disable remote mining solution verification(only useful in ethash).
+	Etherbase  common.Address `toml:",omitempty"` // Public address for block mining rewards
+	Notify     []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages (only useful in ethash).
+	NotifyFull bool           `toml:",omitempty"` // Notify with pending block headers instead of work packages
+	ExtraData  hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
+	GasFloor   uint64         // Target gas floor for mined blocks.
+	GasCeil    uint64         // Target gas ceiling for mined blocks.
+	GasPrice   *big.Int       // Minimum gas price for mining a transaction
+	Recommit   time.Duration  // The time interval for miner to re-create mining work.
+	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).
+
+	NewPayloadTimeout time.Duration // The maximum time allowance for creating a new payload
+}
+
+// DefaultConfig contains default settings for miner.
+var DefaultConfig = Config{
+	GasCeil:  30000000,
+	GasPrice: big.NewInt(vars.GWei),
+
+	// The default recommit time is chosen as two seconds since
+	// consensus-layer usually will wait a half slot of time(6s)
+	// for payload generation. It should be enough for Geth to
+	// run 3 rounds.
+	Recommit:          2 * time.Second,
+	NewPayloadTimeout: 2 * time.Second,
 }
 
 // Miner creates blocks and searches for proof-of-work values.
 type Miner struct {
-	mux      *event.TypeMux
-	worker   *worker
-	coinbase common.Address
-	eth      Backend
-	engine   consensus.Engine
-	exitCh   chan struct{}
-	startCh  chan common.Address
-	stopCh   chan struct{}
+	mux     *event.TypeMux
+	eth     Backend
+	engine  consensus.Engine
+	exitCh  chan struct{}
+	startCh chan struct{}
+	stopCh  chan struct{}
+	worker  *worker
+
+	wg sync.WaitGroup
 }
 
-func New(eth Backend, config *Config, chainConfig ctypes.ChainConfigurator, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(block *types.Block) bool) *Miner {
+func New(eth Backend, config *Config, chainConfig ctypes.ChainConfigurator, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(header *types.Header) bool) *Miner {
 	miner := &Miner{
-		eth:     eth,
 		mux:     mux,
+		eth:     eth,
 		engine:  engine,
 		exitCh:  make(chan struct{}),
-		startCh: make(chan common.Address),
+		startCh: make(chan struct{}),
 		stopCh:  make(chan struct{}),
 		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
 	}
+	miner.wg.Add(1)
 	go miner.update()
-
 	return miner
 }
 
@@ -85,7 +106,9 @@ func New(eth Backend, config *Config, chainConfig ctypes.ChainConfigurator, mux 
 // the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
 // and halt your mining operation for as long as the DOS continues.
 func (miner *Miner) update() {
-	events := miner.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
+	defer miner.wg.Done()
+
+	events := miner.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{}, fetcher.InsertChainEvent{})
 	defer func() {
 		if !events.Closed() {
 			events.Unsubscribe()
@@ -94,13 +117,13 @@ func (miner *Miner) update() {
 
 	shouldStart := false
 	canStart := true
-	dlEventCh := events.Chan()
+	eventCh := events.Chan()
 	for {
 		select {
-		case ev := <-dlEventCh:
+		case ev := <-eventCh:
 			if ev == nil {
 				// Unsubscription done, stop listening
-				dlEventCh = nil
+				eventCh = nil
 				continue
 			}
 			switch ev.Data.(type) {
@@ -113,23 +136,28 @@ func (miner *Miner) update() {
 					shouldStart = true
 					log.Info("Mining aborted due to sync")
 				}
+				miner.worker.syncing.Store(true)
 			case downloader.FailedEvent:
 				canStart = true
 				if shouldStart {
-					miner.SetEtherbase(miner.coinbase)
 					miner.worker.start()
 				}
-			case downloader.DoneEvent:
+				miner.worker.syncing.Store(false)
+			case downloader.DoneEvent, fetcher.InsertChainEvent:
+				// InsertBlockEvents are posted by the block fetcher, which handles the fetching and importing
+				// of network head blocks.
+				// This event should be treated by the miner equivalently to the downloader.DoneEvent;
+				// both events indicate that the local node should be treated as fully synced
+				// and thus ready to mine.
 				canStart = true
 				if shouldStart {
-					miner.SetEtherbase(miner.coinbase)
 					miner.worker.start()
 				}
+				miner.worker.syncing.Store(false)
 				// Stop reacting to downloader events
 				events.Unsubscribe()
 			}
-		case addr := <-miner.startCh:
-			miner.SetEtherbase(addr)
+		case <-miner.startCh:
 			if canStart {
 				miner.worker.start()
 			}
@@ -144,8 +172,8 @@ func (miner *Miner) update() {
 	}
 }
 
-func (miner *Miner) Start(coinbase common.Address) {
-	miner.startCh <- coinbase
+func (miner *Miner) Start() {
+	miner.startCh <- struct{}{}
 }
 
 func (miner *Miner) Stop() {
@@ -154,13 +182,14 @@ func (miner *Miner) Stop() {
 
 func (miner *Miner) Close() {
 	close(miner.exitCh)
+	miner.wg.Wait()
 }
 
 func (miner *Miner) Mining() bool {
 	return miner.worker.isRunning()
 }
 
-func (miner *Miner) HashRate() uint64 {
+func (miner *Miner) Hashrate() uint64 {
 	if pow, ok := miner.engine.(consensus.PoW); ok {
 		return uint64(pow.Hashrate())
 	}
@@ -194,9 +223,19 @@ func (miner *Miner) PendingBlock() *types.Block {
 	return miner.worker.pendingBlock()
 }
 
+// PendingBlockAndReceipts returns the currently pending block and corresponding receipts.
+func (miner *Miner) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
+	return miner.worker.pendingBlockAndReceipts()
+}
+
 func (miner *Miner) SetEtherbase(addr common.Address) {
-	miner.coinbase = addr
 	miner.worker.setEtherbase(addr)
+}
+
+// SetGasCeil sets the gaslimit to strive for when mining blocks post 1559.
+// For pre-1559 blocks, it sets the ceiling.
+func (miner *Miner) SetGasCeil(ceil uint64) {
+	miner.worker.setGasCeil(ceil)
 }
 
 // EnablePreseal turns on the preseal mining feature. It's enabled by default.
@@ -220,4 +259,9 @@ func (miner *Miner) DisablePreseal() {
 // to the given channel.
 func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
 	return miner.worker.pendingLogsFeed.Subscribe(ch)
+}
+
+// BuildPayload builds the payload according to the provided parameters.
+func (miner *Miner) BuildPayload(args *BuildPayloadArgs) (*Payload, error) {
+	return miner.worker.buildPayload(args)
 }

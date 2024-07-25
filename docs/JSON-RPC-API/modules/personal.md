@@ -7,7 +7,7 @@
 
 | Entity | Version |
 | --- | --- |
-| Source | <code>1.11.22-unstable/generated-at:2021-01-23T04:50:40-06:00</code> |
+| Source | <code>1.12.14-unstable/generated-at:2023-09-04T08:02:34-06:00</code> |
 | OpenRPC | <code>1.2.6</code> |
 
 ---
@@ -17,13 +17,13 @@
 
 ### personal_deriveAccount
 
-DeriveAccount requests a HD wallet to derive a new account, optionally pinning
+DeriveAccount requests an HD wallet to derive a new account, optionally pinning
 it for later reuse.
 
 
 #### Params (3)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -63,7 +63,7 @@ pin <code>*bool</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -127,11 +127,23 @@ pin <code>*bool</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_deriveAccount", "params": [<url>, <path>, <pin>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_deriveAccount", "params": [<url>, <path>, <pin>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_deriveAccount", "params": [<url>, <path>, <pin>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -140,10 +152,11 @@ pin <code>*bool</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) DeriveAccount(url string, path string, pin *bool) (accounts.Account, error) {
+func (s *PersonalAccountAPI) DeriveAccount(url string, path string, pin *bool) (accounts.Account, error) {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return accounts.Account{}, err
@@ -156,11 +169,11 @@ func (s *PrivateAccountAPI) DeriveAccount(url string, path string, pin *bool) (a
 		pin = new(bool)
 	}
 	return wallet.Derive(derivPath, *pin)
-}// DeriveAccount requests a HD wallet to derive a new account, optionally pinning
+}// DeriveAccount requests an HD wallet to derive a new account, optionally pinning
 // it for later reuse.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L263" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L344" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -184,7 +197,7 @@ https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_ecRecover
 
 #### Params (2)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -192,7 +205,7 @@ data <code>hexutil.Bytes</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -226,7 +239,7 @@ sig <code>hexutil.Bytes</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -265,7 +278,7 @@ sig <code>hexutil.Bytes</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -295,11 +308,23 @@ sig <code>hexutil.Bytes</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_ecRecover", "params": [<data>, <sig>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_ecRecover", "params": [<data>, <sig>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_ecRecover", "params": [<data>, <sig>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -308,15 +333,16 @@ sig <code>hexutil.Bytes</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (common.Address, error) {
+func (s *PersonalAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (common.Address, error) {
 	if len(sig) != crypto.SignatureLength {
 		return common.Address{}, fmt.Errorf("signature must be %d bytes long", crypto.SignatureLength)
 	}
 	if sig[crypto.RecoveryIDOffset] != 27 && sig[crypto.RecoveryIDOffset] != 28 {
-		return common.Address{}, fmt.Errorf("invalid Ethereum signature (V is not 27 or 28)")
+		return common.Address{}, errors.New("invalid Ethereum signature (V is not 27 or 28)")
 	}
 	sig[crypto.RecoveryIDOffset] -= 27
 	rpk, err := crypto.SigToPub(accounts.TextHash(data), sig)
@@ -336,7 +362,7 @@ func (s *PrivateAccountAPI) EcRecover(ctx context.Context, data, sig hexutil.Byt
 // https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_ecRecover
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L464" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L549" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -352,7 +378,7 @@ encrypting it with the passphrase.
 
 #### Params (2)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -383,7 +409,7 @@ password <code>string</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -413,11 +439,23 @@ password <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_importRawKey", "params": [<privkey>, <password>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_importRawKey", "params": [<privkey>, <password>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_importRawKey", "params": [<privkey>, <password>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -426,10 +464,11 @@ password <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) ImportRawKey(privkey string, password string) (common.Address, error) {
+func (s *PersonalAccountAPI) ImportRawKey(privkey string, password string) (common.Address, error) {
 	key, err := crypto.HexToECDSA(privkey)
 	if err != nil {
 		return common.Address{}, err
@@ -444,7 +483,7 @@ func (s *PrivateAccountAPI) ImportRawKey(privkey string, password string) (commo
 // encrypting it with the passphrase.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L304" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L386" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -459,7 +498,7 @@ InitializeWallet initializes a new wallet at the provided URL, by generating and
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -486,11 +525,23 @@ url <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_initializeWallet", "params": [<url>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_initializeWallet", "params": [<url>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_initializeWallet", "params": [<url>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -499,10 +550,11 @@ url <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) InitializeWallet(ctx context.Context, url string) (string, error) {
+func (s *PersonalAccountAPI) InitializeWallet(ctx context.Context, url string) (string, error) {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return "", err
@@ -521,11 +573,11 @@ func (s *PrivateAccountAPI) InitializeWallet(ctx context.Context, url string) (s
 	case *scwallet.Wallet:
 		return mnemonic, wallet.Initialize(seed)
 	default:
-		return "", fmt.Errorf("specified wallet does not support initialization")
+		return "", errors.New("specified wallet does not support initialization")
 	}
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L487" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L566" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -535,7 +587,7 @@ func (s *PrivateAccountAPI) InitializeWallet(ctx context.Context, url string) (s
 
 ### personal_listAccounts
 
-listAccounts will return a list of addresses for accounts this node manages.
+ListAccounts will return a list of addresses for accounts this node manages.
 
 
 #### Params (0)
@@ -550,7 +602,7 @@ commonAddress <code>[]common.Address</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -592,11 +644,23 @@ commonAddress <code>[]common.Address</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_listAccounts", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_listAccounts", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_listAccounts", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -605,15 +669,16 @@ commonAddress <code>[]common.Address</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) ListAccounts() [ // listAccounts will return a list of addresses for accounts this node manages.
+func (s *PersonalAccountAPI) ListAccounts() [ // ListAccounts will return a list of addresses for accounts this node manages.
 ]common.Address {
 	return s.am.Accounts()
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L213" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L294" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -638,7 +703,7 @@ rawWallet <code>[]rawWallet</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -750,11 +815,23 @@ rawWallet <code>[]rawWallet</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_listWallets", "params": []}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_listWallets", "params": []}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_listWallets", "params": []}'
+	```
+
 
 === "Javascript Console"
 
@@ -763,10 +840,11 @@ rawWallet <code>[]rawWallet</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) ListWallets() [ // ListWallets will return a list of wallets this node manages.
+func (s *PersonalAccountAPI) ListWallets() [ // ListWallets will return a list of wallets this node manages.
 ]rawWallet {
 	wallets := make([]rawWallet, 0)
 	for _, wallet := range s.am.Wallets() {
@@ -780,7 +858,7 @@ func (s *PrivateAccountAPI) ListWallets() [ // ListWallets will return a list of
 	return wallets
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L227" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L308" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -795,7 +873,7 @@ LockAccount will lock the account associated with the given address when it's un
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -803,7 +881,7 @@ addr <code>common.Address</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -847,11 +925,23 @@ addr <code>common.Address</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_lockAccount", "params": [<addr>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_lockAccount", "params": [<addr>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_lockAccount", "params": [<addr>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -860,10 +950,11 @@ addr <code>common.Address</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
+func (s *PersonalAccountAPI) LockAccount(addr common.Address) bool {
 	if ks, err := fetchKeystore(s.am); err == nil {
 		return ks.Lock(addr) == nil
 	}
@@ -871,7 +962,7 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 }// LockAccount will lock the account associated with the given address when it's unlocked.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L349" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L431" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -886,7 +977,7 @@ NewAccount will create a new account and returns the address for the new account
 
 #### Params (1)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -904,19 +995,26 @@ password <code>string</code>
 
 
 
-<code>common.Address</code> 
+<code>common.AddressEIP55</code> 
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
 	
-	- description: `Hex representation of a Keccak 256 hash POINTER`
-	- pattern: `^0x[a-fA-F\d]{64}$`
-	- title: `keccak`
-	- type: string
+	- items: 
+
+			- description: `Hex representation of the integer`
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
+			- type: string
+
+
+	- maxItems: `20`
+	- minItems: `20`
+	- type: array
 
 
 	```
@@ -925,11 +1023,20 @@ password <code>string</code>
 
 	``` Raw
 	{
-        "description": "Hex representation of a Keccak 256 hash POINTER",
-        "pattern": "^0x[a-fA-F\\d]{64}$",
-        "title": "keccak",
+        "items": [
+            {
+                "description": "Hex representation of the integer",
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
+                "type": [
+                    "string"
+                ]
+            }
+        ],
+        "maxItems": 20,
+        "minItems": 20,
         "type": [
-            "string"
+            "array"
         ]
     }
 	```
@@ -938,11 +1045,23 @@ password <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_newAccount", "params": [<password>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_newAccount", "params": [<password>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_newAccount", "params": [<password>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -951,26 +1070,28 @@ password <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) NewAccount(password string) (common.Address, error) {
+func (s *PersonalAccountAPI) NewAccount(password string) (common.AddressEIP55, error) {
 	ks, err := fetchKeystore(s.am)
 	if err != nil {
-		return common.Address{}, err
+		return common.AddressEIP55{}, err
 	}
 	acc, err := ks.NewAccount(password)
 	if err == nil {
-		log.Info("Your new key was generated", "address", acc.Address)
+		addrEIP55 := common.AddressEIP55(acc.Address)
+		log.Info("Your new key was generated", "address", addrEIP55.String())
 		log.Warn("Please backup your key file!", "path", acc.URL.Path)
 		log.Warn("Please remember your password!")
-		return acc.Address, nil
+		return addrEIP55, nil
 	}
-	return common.Address{}, err
+	return common.AddressEIP55{}, err
 }// NewAccount will create a new account and returns the address for the new account.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L279" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L360" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -988,7 +1109,7 @@ Trezor PIN matrix challenge).
 
 #### Params (2)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1016,11 +1137,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_openWallet", "params": [<url>, <passphrase>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_openWallet", "params": [<url>, <passphrase>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_openWallet", "params": [<url>, <passphrase>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1029,10 +1162,11 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) OpenWallet(url string, passphrase *string) error {
+func (s *PersonalAccountAPI) OpenWallet(url string, passphrase *string) error {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return err
@@ -1048,7 +1182,7 @@ func (s *PrivateAccountAPI) OpenWallet(url string, passphrase *string) error {
 // Trezor PIN matrix challenge).
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L249" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L330" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1059,27 +1193,55 @@ func (s *PrivateAccountAPI) OpenWallet(url string, passphrase *string) error {
 ### personal_sendTransaction
 
 SendTransaction will create a transaction from the given arguments and
-tries to sign it with the key associated with args.To. If the given passwd isn't
-able to decrypt the key it fails.
+tries to sign it with the key associated with args.From. If the given
+passwd isn't able to decrypt the key it fails.
 
 
 #### Params (2)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
-args <code>SendTxArgs</code> 
+args <code>TransactionArgs</code> 
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
 	
 	- additionalProperties: `false`
 	- properties: 
+		- accessList: 
+			- items: 
+				- additionalProperties: `false`
+				- properties: 
+					- address: 
+						- pattern: `^0x[a-fA-F\d]{64}$`
+						- title: `keccak`
+						- type: `string`
+
+					- storageKeys: 
+						- items: 
+							- description: `Hex representation of a Keccak 256 hash`
+							- pattern: `^0x[a-fA-F\d]{64}$`
+							- title: `keccak`
+							- type: `string`
+
+						- type: `array`
+
+
+				- type: `object`
+
+			- type: `array`
+
+		- chainId: 
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
+			- type: `string`
+
 		- data: 
 			- pattern: `^0x([a-fA-F\d])+$`
 			- title: `dataWord`
@@ -1103,6 +1265,16 @@ args <code>SendTxArgs</code>
 		- input: 
 			- pattern: `^0x([a-fA-F\d])+$`
 			- title: `dataWord`
+			- type: `string`
+
+		- maxFeePerGas: 
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
+			- type: `string`
+
+		- maxPriorityFeePerGas: 
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
 			- type: `string`
 
 		- nonce: 
@@ -1132,6 +1304,34 @@ args <code>SendTxArgs</code>
 	{
         "additionalProperties": false,
         "properties": {
+            "accessList": {
+                "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "address": {
+                            "pattern": "^0x[a-fA-F\\d]{64}$",
+                            "title": "keccak",
+                            "type": "string"
+                        },
+                        "storageKeys": {
+                            "items": {
+                                "description": "Hex representation of a Keccak 256 hash",
+                                "pattern": "^0x[a-fA-F\\d]{64}$",
+                                "title": "keccak",
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                },
+                "type": "array"
+            },
+            "chainId": {
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
+                "type": "string"
+            },
             "data": {
                 "pattern": "^0x([a-fA-F\\d])+$",
                 "title": "dataWord",
@@ -1155,6 +1355,16 @@ args <code>SendTxArgs</code>
             "input": {
                 "pattern": "^0x([a-fA-F\\d])+$",
                 "title": "dataWord",
+                "type": "string"
+            },
+            "maxFeePerGas": {
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
+                "type": "string"
+            },
+            "maxPriorityFeePerGas": {
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
                 "type": "string"
             },
             "nonce": {
@@ -1201,7 +1411,7 @@ passwd <code>string</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1231,11 +1441,23 @@ passwd <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_sendTransaction", "params": [<args>, <passwd>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_sendTransaction", "params": [<args>, <passwd>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_sendTransaction", "params": [<args>, <passwd>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1244,26 +1466,27 @@ passwd <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
+func (s *PersonalAccountAPI) SendTransaction(ctx context.Context, args TransactionArgs, passwd string) (common.Hash, error) {
 	if args.Nonce == nil {
-		s.nonceLock.LockAddr(args.From)
-		defer s.nonceLock.UnlockAddr(args.From)
+		s.nonceLock.LockAddr(args.from())
+		defer s.nonceLock.UnlockAddr(args.from())
 	}
 	signed, err := s.signTransaction(ctx, &args, passwd)
 	if err != nil {
-		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+		log.Warn("Failed transaction send attempt", "from", args.from(), "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return common.Hash{}, err
 	}
 	return SubmitTransaction(ctx, s.b, signed)
 }// SendTransaction will create a transaction from the given arguments and
-// tries to sign it with the key associated with args.To. If the given passwd isn't
-// able to decrypt the key it fails.
+// tries to sign it with the key associated with args.From. If the given
+// passwd isn't able to decrypt the key it fails.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L379" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L461" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1274,7 +1497,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 ### personal_sign
 
 Sign calculates an Ethereum ECDSA signature for:
-keccack256("\x19Ethereum Signed Message:\n" + len(message) + message))
+keccak256("\x19Ethereum Signed Message:\n" + len(message) + message))
 
 Note, the produced signature conforms to the secp256k1 curve R, S and V values,
 where the V value will be 27 or 28 for legacy reasons.
@@ -1286,7 +1509,7 @@ https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_sign
 
 #### Params (3)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1294,7 +1517,7 @@ data <code>hexutil.Bytes</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1328,7 +1551,7 @@ addr <code>common.Address</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1376,7 +1599,7 @@ passwd <code>string</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1406,11 +1629,23 @@ passwd <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_sign", "params": [<data>, <addr>, <passwd>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_sign", "params": [<data>, <addr>, <passwd>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_sign", "params": [<data>, <addr>, <passwd>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1419,10 +1654,11 @@ passwd <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr common.Address, passwd string) (hexutil.Bytes, error) {
+func (s *PersonalAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr common.Address, passwd string) (hexutil.Bytes, error) {
 	account := accounts.Account{Address: addr}
 	wallet, err := s.b.AccountManager().Find(account)
 	if err != nil {
@@ -1436,7 +1672,7 @@ func (s *PrivateAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr c
 	signature[crypto.RecoveryIDOffset] += 27
 	return signature, nil
 }// Sign calculates an Ethereum ECDSA signature for:
-// keccack256("\x19Ethereum Signed Message:\n" + len(message) + message))
+// keccak256("\x19Ethereum Signed Message:\n" + len(message) + message))
 //
 // Note, the produced signature conforms to the secp256k1 curve R, S and V values,
 // where the V value will be 27 or 28 for legacy reasons.
@@ -1446,211 +1682,7 @@ func (s *PrivateAccountAPI) Sign(ctx context.Context, data hexutil.Bytes, addr c
 // https://github.com/ethereum/go-ethereum/wiki/Management-APIs#personal_sign
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L436" target="_">View on GitHub →</a>
-</p>
-</details>
-
----
-
-
-
-### personal_signAndSendTransaction
-
-SignAndSendTransaction was renamed to SendTransaction. This method is deprecated
-and will be removed in the future. It primary goal is to give clients time to update.
-
-
-#### Params (2)
-
-Parameters must be given _by position_.  
-
-
-__1:__ 
-args <code>SendTxArgs</code> 
-
-  + Required: ✓ Yes
-
- 
-=== "Schema"
-
-	``` Schema
-	
-	- additionalProperties: `false`
-	- properties: 
-		- data: 
-			- pattern: `^0x([a-fA-F\d])+$`
-			- title: `dataWord`
-			- type: `string`
-
-		- from: 
-			- pattern: `^0x[a-fA-F\d]{64}$`
-			- title: `keccak`
-			- type: `string`
-
-		- gas: 
-			- pattern: `^0x([a-fA-F\d])+$`
-			- title: `uint64`
-			- type: `string`
-
-		- gasPrice: 
-			- pattern: `^0x[a-fA-F0-9]+$`
-			- title: `integer`
-			- type: `string`
-
-		- input: 
-			- pattern: `^0x([a-fA-F\d])+$`
-			- title: `dataWord`
-			- type: `string`
-
-		- nonce: 
-			- pattern: `^0x([a-fA-F\d])+$`
-			- title: `uint64`
-			- type: `string`
-
-		- to: 
-			- pattern: `^0x[a-fA-F\d]{64}$`
-			- title: `keccak`
-			- type: `string`
-
-		- value: 
-			- pattern: `^0x[a-fA-F0-9]+$`
-			- title: `integer`
-			- type: `string`
-
-
-	- type: object
-
-
-	```
-
-=== "Raw"
-
-	``` Raw
-	{
-        "additionalProperties": false,
-        "properties": {
-            "data": {
-                "pattern": "^0x([a-fA-F\\d])+$",
-                "title": "dataWord",
-                "type": "string"
-            },
-            "from": {
-                "pattern": "^0x[a-fA-F\\d]{64}$",
-                "title": "keccak",
-                "type": "string"
-            },
-            "gas": {
-                "pattern": "^0x([a-fA-F\\d])+$",
-                "title": "uint64",
-                "type": "string"
-            },
-            "gasPrice": {
-                "pattern": "^0x[a-fA-F0-9]+$",
-                "title": "integer",
-                "type": "string"
-            },
-            "input": {
-                "pattern": "^0x([a-fA-F\\d])+$",
-                "title": "dataWord",
-                "type": "string"
-            },
-            "nonce": {
-                "pattern": "^0x([a-fA-F\\d])+$",
-                "title": "uint64",
-                "type": "string"
-            },
-            "to": {
-                "pattern": "^0x[a-fA-F\\d]{64}$",
-                "title": "keccak",
-                "type": "string"
-            },
-            "value": {
-                "pattern": "^0x[a-fA-F0-9]+$",
-                "title": "integer",
-                "type": "string"
-            }
-        },
-        "type": [
-            "object"
-        ]
-    }
-	```
-
-
-
-
-__2:__ 
-passwd <code>string</code> 
-
-  + Required: ✓ Yes
-
-
-
-
-
-
-#### Result
-
-
-
-
-<code>common.Hash</code> 
-
-  + Required: ✓ Yes
-
- 
-=== "Schema"
-
-	``` Schema
-	
-	- description: `Hex representation of a Keccak 256 hash`
-	- pattern: `^0x[a-fA-F\d]{64}$`
-	- title: `keccak`
-	- type: string
-
-
-	```
-
-=== "Raw"
-
-	``` Raw
-	{
-        "description": "Hex representation of a Keccak 256 hash",
-        "pattern": "^0x[a-fA-F\\d]{64}$",
-        "title": "keccak",
-        "type": [
-            "string"
-        ]
-    }
-	```
-
-
-
-#### Client Method Invocation Examples
-
-=== "Shell"
-
-	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_signAndSendTransaction", "params": [<args>, <passwd>]}'
-	```
-
-=== "Javascript Console"
-
-	``` js
-	personal.signAndSendTransaction(args,passwd);
-	```
-
-
-<details><summary>Source code</summary>
-<p>
-```go
-func (s *PrivateAccountAPI) SignAndSendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
-	return s.SendTransaction(ctx, args, passwd)
-}// SignAndSendTransaction was renamed to SendTransaction. This method is deprecated
-// and will be removed in the future. It primary goal is to give clients time to update.
-
-```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L482" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L521" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1661,28 +1693,56 @@ func (s *PrivateAccountAPI) SignAndSendTransaction(ctx context.Context, args Sen
 ### personal_signTransaction
 
 SignTransaction will create a transaction from the given arguments and
-tries to sign it with the key associated with args.To. If the given passwd isn't
+tries to sign it with the key associated with args.From. If the given passwd isn't
 able to decrypt the key it fails. The transaction is returned in RLP-form, not broadcast
 to other nodes
 
 
 #### Params (2)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
-args <code>SendTxArgs</code> 
+args <code>TransactionArgs</code> 
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
 	
 	- additionalProperties: `false`
 	- properties: 
+		- accessList: 
+			- items: 
+				- additionalProperties: `false`
+				- properties: 
+					- address: 
+						- pattern: `^0x[a-fA-F\d]{64}$`
+						- title: `keccak`
+						- type: `string`
+
+					- storageKeys: 
+						- items: 
+							- description: `Hex representation of a Keccak 256 hash`
+							- pattern: `^0x[a-fA-F\d]{64}$`
+							- title: `keccak`
+							- type: `string`
+
+						- type: `array`
+
+
+				- type: `object`
+
+			- type: `array`
+
+		- chainId: 
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
+			- type: `string`
+
 		- data: 
 			- pattern: `^0x([a-fA-F\d])+$`
 			- title: `dataWord`
@@ -1706,6 +1766,16 @@ args <code>SendTxArgs</code>
 		- input: 
 			- pattern: `^0x([a-fA-F\d])+$`
 			- title: `dataWord`
+			- type: `string`
+
+		- maxFeePerGas: 
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
+			- type: `string`
+
+		- maxPriorityFeePerGas: 
+			- pattern: `^0x[a-fA-F0-9]+$`
+			- title: `integer`
 			- type: `string`
 
 		- nonce: 
@@ -1735,6 +1805,34 @@ args <code>SendTxArgs</code>
 	{
         "additionalProperties": false,
         "properties": {
+            "accessList": {
+                "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                        "address": {
+                            "pattern": "^0x[a-fA-F\\d]{64}$",
+                            "title": "keccak",
+                            "type": "string"
+                        },
+                        "storageKeys": {
+                            "items": {
+                                "description": "Hex representation of a Keccak 256 hash",
+                                "pattern": "^0x[a-fA-F\\d]{64}$",
+                                "title": "keccak",
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                },
+                "type": "array"
+            },
+            "chainId": {
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
+                "type": "string"
+            },
             "data": {
                 "pattern": "^0x([a-fA-F\\d])+$",
                 "title": "dataWord",
@@ -1758,6 +1856,16 @@ args <code>SendTxArgs</code>
             "input": {
                 "pattern": "^0x([a-fA-F\\d])+$",
                 "title": "dataWord",
+                "type": "string"
+            },
+            "maxFeePerGas": {
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
+                "type": "string"
+            },
+            "maxPriorityFeePerGas": {
+                "pattern": "^0x[a-fA-F0-9]+$",
+                "title": "integer",
                 "type": "string"
             },
             "nonce": {
@@ -1804,7 +1912,7 @@ passwd <code>string</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1852,11 +1960,23 @@ passwd <code>string</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_signTransaction", "params": [<args>, <passwd>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_signTransaction", "params": [<args>, <passwd>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_signTransaction", "params": [<args>, <passwd>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -1865,39 +1985,44 @@ passwd <code>string</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) SignTransaction(ctx context.Context, args SendTxArgs, passwd string) (*SignTransactionResult, error) {
-	if args.Gas == nil {
-		return nil, fmt.Errorf("gas not specified")
+func (s *PersonalAccountAPI) SignTransaction(ctx context.Context, args TransactionArgs, passwd string) (*SignTransactionResult, error) {
+	if args.From == nil {
+		return nil, errors.New("sender not specified")
 	}
-	if args.GasPrice == nil {
-		return nil, fmt.Errorf("gasPrice not specified")
+	if args.Gas == nil {
+		return nil, errors.New("gas not specified")
+	}
+	if args.GasPrice == nil && (args.MaxFeePerGas == nil || args.MaxPriorityFeePerGas == nil) {
+		return nil, errors.New("missing gasPrice or maxFeePerGas/maxPriorityFeePerGas")
 	}
 	if args.Nonce == nil {
-		return nil, fmt.Errorf("nonce not specified")
+		return nil, errors.New("nonce not specified")
 	}
-	if err := checkTxFee(args.GasPrice.ToInt(), uint64(*args.Gas), s.b.RPCTxFeeCap()); err != nil {
+	tx := args.toTransaction()
+	if err := checkTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
 	signed, err := s.signTransaction(ctx, &args, passwd)
 	if err != nil {
-		log.Warn("Failed transaction sign attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
+		log.Warn("Failed transaction sign attempt", "from", args.from(), "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return nil, err
 	}
-	data, err := rlp.EncodeToBytes(signed)
+	data, err := signed.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	return &SignTransactionResult{data, signed}, nil
 }// SignTransaction will create a transaction from the given arguments and
-// tries to sign it with the key associated with args.To. If the given passwd isn't
+// tries to sign it with the key associated with args.From. If the given passwd isn't
 // able to decrypt the key it fails. The transaction is returned in RLP-form, not broadcast
 // to other nodes
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L398" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L480" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -1914,7 +2039,7 @@ default of 300 seconds. It returns an indication if the account was unlocked.
 
 #### Params (3)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -1922,7 +2047,7 @@ addr <code>common.Address</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -1965,7 +2090,7 @@ duration <code>*uint64</code>
 
   + Required: ✓ Yes
 
- 
+
 === "Schema"
 
 	``` Schema
@@ -2009,11 +2134,23 @@ duration <code>*uint64</code>
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_unlockAccount", "params": [<addr>, <password>, <duration>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_unlockAccount", "params": [<addr>, <password>, <duration>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_unlockAccount", "params": [<addr>, <password>, <duration>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -2022,10 +2159,11 @@ duration <code>*uint64</code>
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) UnlockAccount(ctx context.Context, addr common.Address, password string, duration *uint64) (bool, error) {
+func (s *PersonalAccountAPI) UnlockAccount(ctx context.Context, addr common.Address, password string, duration *uint64) (bool, error) {
 	if s.b.ExtRPCEnabled() && !s.b.AccountManager().Config().InsecureUnlockAllowed {
 		return false, errors.New("account unlock with HTTP access is forbidden")
 	}
@@ -2052,7 +2190,7 @@ func (s *PrivateAccountAPI) UnlockAccount(ctx context.Context, addr common.Addre
 // default of 300 seconds. It returns an indication if the account was unlocked.
 
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L320" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L402" target="_">View on GitHub →</a>
 </p>
 </details>
 
@@ -2067,7 +2205,7 @@ Unpair deletes a pairing between wallet and geth.
 
 #### Params (2)
 
-Parameters must be given _by position_.  
+Parameters must be given _by position_.
 
 
 __1:__ 
@@ -2095,11 +2233,23 @@ _None_
 
 #### Client Method Invocation Examples
 
-=== "Shell"
+
+=== "Shell HTTP"
 
 	``` shell
-	curl -X POST http://localhost:8545 --data '{"jsonrpc": "2.0", id": 42, "method": "personal_unpair", "params": [<url>, <pin>]}'
+	curl -X POST -H "Content-Type: application/json" http://localhost:8545 --data '{"jsonrpc": "2.0", "id": 42, "method": "personal_unpair", "params": [<url>, <pin>]}'
 	```
+
+
+
+
+
+=== "Shell WebSocket"
+
+	``` shell
+	wscat -c ws://localhost:8546 -x '{"jsonrpc": "2.0", "id": 1, "method": "personal_unpair", "params": [<url>, <pin>]}'
+	```
+
 
 === "Javascript Console"
 
@@ -2108,10 +2258,11 @@ _None_
 	```
 
 
+
 <details><summary>Source code</summary>
 <p>
 ```go
-func (s *PrivateAccountAPI) Unpair(ctx context.Context, url string, pin string) error {
+func (s *PersonalAccountAPI) Unpair(ctx context.Context, url string, pin string) error {
 	wallet, err := s.am.Wallet(url)
 	if err != nil {
 		return err
@@ -2121,11 +2272,11 @@ func (s *PrivateAccountAPI) Unpair(ctx context.Context, url string, pin string) 
 	case *scwallet.Wallet:
 		return wallet.Unpair([]byte(pin))
 	default:
-		return fmt.Errorf("specified wallet does not support pairing")
+		return errors.New("specified wallet does not support pairing")
 	}
 }
 ```
-<a href="https://github.com/ethereum/go-ethereum/blob/master/internal/ethapi/api.go#L514" target="_">View on GitHub →</a>
+<a href="https://github.com/etclabscore/core-geth/blob/master/internal/ethapi/api.go#L593" target="_">View on GitHub →</a>
 </p>
 </details>
 

@@ -283,11 +283,9 @@ func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction, chainID *b
 	if !found {
 		return nil, ErrLocked
 	}
-	// Depending on the presence of the chain ID, sign with EIP155 or homestead
-	if chainID != nil {
-		return types.SignTx(tx, types.NewEIP155Signer(chainID), unlockedKey.PrivateKey)
-	}
-	return types.SignTx(tx, types.HomesteadSigner{}, unlockedKey.PrivateKey)
+	// Depending on the presence of the chain ID, sign with 2718 or homestead
+	signer := types.LatestSignerForChainID(chainID)
+	return types.SignTx(tx, signer, unlockedKey.PrivateKey)
 }
 
 // SignHashWithPassphrase signs hash if the private key matching the given address
@@ -310,12 +308,9 @@ func (ks *KeyStore) SignTxWithPassphrase(a accounts.Account, passphrase string, 
 		return nil, err
 	}
 	defer zeroKey(key.PrivateKey)
-
-	// Depending on the presence of the chain ID, sign with EIP155 or homestead
-	if chainID != nil {
-		return types.SignTx(tx, types.NewEIP155Signer(chainID), key.PrivateKey)
-	}
-	return types.SignTx(tx, types.HomesteadSigner{}, key.PrivateKey)
+	// Depending on the presence of the chain ID, sign with or without replay protection.
+	signer := types.LatestSignerForChainID(chainID)
+	return types.SignTx(tx, signer, key.PrivateKey)
 }
 
 // Unlock unlocks the given account indefinitely.
@@ -501,6 +496,14 @@ func (ks *KeyStore) ImportPreSaleKey(keyJSON []byte, passphrase string) (account
 	ks.cache.add(a)
 	ks.refreshWallets()
 	return a, nil
+}
+
+// isUpdating returns whether the event notification loop is running.
+// This method is mainly meant for tests.
+func (ks *KeyStore) isUpdating() bool {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+	return ks.updating
 }
 
 // zeroKey zeroes a private key in memory.

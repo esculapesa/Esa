@@ -465,7 +465,6 @@ func TestFpNonResidue(t *testing.T) {
 			i -= 1
 		}
 	}
-
 }
 
 func TestFp2Serialization(t *testing.T) {
@@ -1390,6 +1389,15 @@ func BenchmarkMultiplication(t *testing.B) {
 	t.ResetTimer()
 	for i := 0; i < t.N; i++ {
 		mul(c, a, b)
+	}
+}
+
+func BenchmarkInverse(t *testing.B) {
+	a, _ := new(fe).rand(rand.Reader)
+	b, _ := new(fe).rand(rand.Reader)
+	t.ResetTimer()
+	for i := 0; i < t.N; i++ {
+		inverse(a, b)
 	}
 }
 

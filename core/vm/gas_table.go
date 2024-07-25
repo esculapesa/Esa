@@ -60,7 +60,8 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 // as argument:
 // CALLDATACOPY (stack position 2)
 // CODECOPY (stack position 2)
-// EXTCODECOPY (stack poition 3)
+// MCOPY (stack position 2)
+// EXTCODECOPY (stack position 3)
 // RETURNDATACOPY (stack position 2)
 func memoryCopierGas(stackpos int) gasFunc {
 	return func(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
@@ -89,6 +90,7 @@ func memoryCopierGas(stackpos int) gasFunc {
 var (
 	gasCallDataCopy   = memoryCopierGas(2)
 	gasCodeCopy       = memoryCopierGas(2)
+	gasMcopy          = memoryCopierGas(2)
 	gasExtCodeCopy    = memoryCopierGas(3)
 	gasReturnDataCopy = memoryCopierGas(2)
 )
@@ -96,13 +98,13 @@ var (
 func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
 		y, x    = stack.Back(1), stack.Back(0)
-		current = evm.StateDB.GetState(contract.Address(), common.Hash(x.Bytes32()))
+		current = evm.StateDB.GetState(contract.Address(), x.Bytes32())
 	)
 	// The legacy gas metering only takes into consideration the current state
-	neip1283t := !evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP1283Transition, evm.BlockNumber)
-	deip1283t := evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP1283DisableTransition, evm.BlockNumber)
+	neip1283t := !evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP1283Transition, evm.Context.BlockNumber)
+	deip1283t := evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP1283DisableTransition, evm.Context.BlockNumber)
 	if neip1283t || deip1283t {
-		// This checks for 3 scenario's and calculates gas accordingly:
+		// This checks for 3 scenarios and calculates gas accordingly:
 		//
 		// 1. From a zero-value address to a non-zero value         (NEW VALUE)
 		// 2. From a non-zero value address to a zero-value address (DELETE)
@@ -117,30 +119,33 @@ func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 			return vars.SstoreResetGas, nil
 		}
 	}
+
 	// The new gas metering is based on net gas costs (EIP-1283):
 	//
-	// 1. If current value equals new value (this is a no-op), 200 gas is deducted.
-	// 2. If current value does not equal new value
-	//   2.1. If original value equals current value (this storage slot has not been changed by the current execution context)
-	//     2.1.1. If original value is 0, 20000 gas is deducted.
-	// 	   2.1.2. Otherwise, 5000 gas is deducted. If new value is 0, add 15000 gas to refund counter.
-	// 	2.2. If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
-	// 	  2.2.1. If original value is not 0
-	//       2.2.1.1. If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
-	//       2.2.1.2. If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
-	// 	  2.2.2. If original value equals new value (this storage slot is reset)
-	//       2.2.2.1. If original value is 0, add 19800 gas to refund counter.
-	// 	     2.2.2.2. Otherwise, add 4800 gas to refund counter.
+	// (1.) If current value equals new value (this is a no-op), 200 gas is deducted.
+	// (2.) If current value does not equal new value
+	//	(2.1.) If original value equals current value (this storage slot has not been changed by the current execution context)
+	//		(2.1.1.) If original value is 0, 20000 gas is deducted.
+	//		(2.1.2.) Otherwise, 5000 gas is deducted. If new value is 0, add 15000 gas to refund counter.
+	//	(2.2.) If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
+	//		(2.2.1.) If original value is not 0
+	//			(2.2.1.1.) If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
+	//			(2.2.1.2.) If new value is 0 (also means that current value is not 0), add 15000 gas to refund counter.
+	//		(2.2.2.) If original value equals new value (this storage slot is reset)
+	//			(2.2.2.1.) If original value is 0, add 19800 gas to refund counter.
+	//			(2.2.2.2.) Otherwise, add 4800 gas to refund counter.
 
 	// Enforce sufficient gas left, per EIP1706, guarding against reentrancy attacks.
-	if contract.Gas <= vars.CallStipend && evm.chainConfig.IsEnabled(evm.chainConfig.GetEIP1706Transition, evm.BlockNumber) {
+	// PTAL-meowsbits This chunk is omitted upstream. Why?
+	if contract.Gas <= vars.CallStipend && evm.chainConfig.IsEnabled(evm.chainConfig.GetEIP1706Transition, evm.Context.BlockNumber) {
 		return 0, ErrOutOfGas
 	}
+
 	value := common.Hash(y.Bytes32())
 	if current == value { // noop (1)
 		return vars.NetSstoreNoopGas, nil
 	}
-	original := evm.StateDB.GetCommittedState(contract.Address(), common.Hash(x.Bytes32()))
+	original := evm.StateDB.GetCommittedState(contract.Address(), x.Bytes32())
 	if original == current {
 		if original == (common.Hash{}) { // create slot (2.1.1)
 			return vars.NetSstoreInitGas, nil
@@ -167,19 +172,21 @@ func gasSStore(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 	return vars.NetSstoreDirtyGas, nil
 }
 
-// 0. If *gasleft* is less than or equal to 2300, fail the current call.
-// 1. If current value equals new value (this is a no-op), SLOAD_GAS is deducted.
-// 2. If current value does not equal new value:
-//   2.1. If original value equals current value (this storage slot has not been changed by the current execution context):
-//     2.1.1. If original value is 0, SSTORE_SET_GAS (20K) gas is deducted.
-//     2.1.2. Otherwise, SSTORE_RESET_GAS gas is deducted. If new value is 0, add SSTORE_CLEARS_SCHEDULE to refund counter.
-//   2.2. If original value does not equal current value (this storage slot is dirty), SLOAD_GAS gas is deducted. Apply both of the following clauses:
-//     2.2.1. If original value is not 0:
-//       2.2.1.1. If current value is 0 (also means that new value is not 0), subtract SSTORE_CLEARS_SCHEDULE gas from refund counter.
-//       2.2.1.2. If new value is 0 (also means that current value is not 0), add SSTORE_CLEARS_SCHEDULE gas to refund counter.
-//     2.2.2. If original value equals new value (this storage slot is reset):
-//       2.2.2.1. If original value is 0, add SSTORE_SET_GAS - SLOAD_GAS to refund counter.
-//       2.2.2.2. Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.
+// Here come the EIP2200 rules:
+//
+//	(0.) If *gasleft* is less than or equal to 2300, fail the current call.
+//	(1.) If current value equals new value (this is a no-op), SLOAD_GAS is deducted.
+//	(2.) If current value does not equal new value:
+//		(2.1.) If original value equals current value (this storage slot has not been changed by the current execution context):
+//			(2.1.1.) If original value is 0, SSTORE_SET_GAS (20K) gas is deducted.
+//			(2.1.2.) Otherwise, SSTORE_RESET_GAS gas is deducted. If new value is 0, add SSTORE_CLEARS_SCHEDULE to refund counter.
+//		(2.2.) If original value does not equal current value (this storage slot is dirty), SLOAD_GAS gas is deducted. Apply both of the following clauses:
+//			(2.2.1.) If original value is not 0:
+//				(2.2.1.1.) If current value is 0 (also means that new value is not 0), subtract SSTORE_CLEARS_SCHEDULE gas from refund counter.
+//				(2.2.1.2.) If new value is 0 (also means that current value is not 0), add SSTORE_CLEARS_SCHEDULE gas to refund counter.
+//			(2.2.2.) If original value equals new value (this storage slot is reset):
+//				(2.2.2.1.) If original value is 0, add SSTORE_SET_GAS - SLOAD_GAS to refund counter.
+//				(2.2.2.2.) Otherwise, add SSTORE_RESET_GAS - SLOAD_GAS gas to refund counter.
 func gasSStoreEIP2200(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	// If we fail the minimum gas availability invariant, fail (0)
 	if contract.Gas <= vars.SstoreSentryGasEIP2200 {
@@ -188,14 +195,14 @@ func gasSStoreEIP2200(evm *EVM, contract *Contract, stack *Stack, mem *Memory, m
 	// Gas sentry honoured, do the actual gas calculation based on the stored value
 	var (
 		y, x    = stack.Back(1), stack.Back(0)
-		current = evm.StateDB.GetState(contract.Address(), common.Hash(x.Bytes32()))
+		current = evm.StateDB.GetState(contract.Address(), x.Bytes32())
 	)
 	value := common.Hash(y.Bytes32())
 
 	if current == value { // noop (1)
 		return vars.SloadGasEIP2200, nil
 	}
-	original := evm.StateDB.GetCommittedState(contract.Address(), common.Hash(x.Bytes32()))
+	original := evm.StateDB.GetCommittedState(contract.Address(), x.Bytes32())
 	if original == current {
 		if original == (common.Hash{}) { // create slot (2.1.1)
 			return vars.SstoreSetGasEIP2200, nil
@@ -252,7 +259,7 @@ func makeGasLog(n uint64) gasFunc {
 	}
 }
 
-func gasSha3(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+func gasKeccak256(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	gas, err := memoryGasCost(mem, memorySize)
 	if err != nil {
 		return 0, err
@@ -261,7 +268,7 @@ func gasSha3(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 	if overflow {
 		return 0, ErrGasUintOverflow
 	}
-	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), vars.Sha3WordGas); overflow {
+	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), vars.Keccak256WordGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
 	if gas, overflow = math.SafeAdd(gas, wordGas); overflow {
@@ -283,27 +290,8 @@ var (
 	gasMLoad   = pureMemoryGascost
 	gasMStore8 = pureMemoryGascost
 	gasMStore  = pureMemoryGascost
+	gasCreate  = pureMemoryGascost
 )
-
-func gasCreate(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
-	var overflow bool
-	gas, err := memoryGasCost(mem, memorySize)
-	if err != nil {
-		return 0, err
-	}
-	remainingGasTemp, overflow := math.SafeSub(contract.Gas, gas)
-	if overflow {
-		return 0, ErrGasUintOverflow
-	}
-	evm.CallGasTemp, err = createGasEip150(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber), remainingGasTemp)
-	if err != nil {
-		return 0, err
-	}
-	if gas, overflow = math.SafeAdd(gas, evm.CallGasTemp); overflow {
-		return 0, ErrGasUintOverflow
-	}
-	return gas, nil
-}
 
 func gasCreate2(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	gas, err := memoryGasCost(mem, memorySize)
@@ -314,21 +302,43 @@ func gasCreate2(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memoryS
 	if overflow {
 		return 0, ErrGasUintOverflow
 	}
-	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), vars.Sha3WordGas); overflow {
+	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), vars.Keccak256WordGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
 	if gas, overflow = math.SafeAdd(gas, wordGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
-	remainingGasTemp, overflow := math.SafeSub(contract.Gas, gas)
-	if overflow {
-		return 0, ErrGasUintOverflow
-	}
-	evm.CallGasTemp, err = createGasEip150(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber), remainingGasTemp)
+	return gas, nil
+}
+
+func gasCreateEip3860(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
 	if err != nil {
 		return 0, err
 	}
-	if gas, overflow = math.SafeAdd(gas, evm.CallGasTemp); overflow {
+	size, overflow := stack.Back(2).Uint64WithOverflow()
+	if overflow || size > vars.MaxInitCodeSize {
+		return 0, ErrGasUintOverflow
+	}
+	// Since size <= vars.MaxInitCodeSize, these multiplication cannot overflow
+	moreGas := vars.InitCodeWordGas * ((size + 31) / 32)
+	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
+		return 0, ErrGasUintOverflow
+	}
+	return gas, nil
+}
+func gasCreate2Eip3860(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+	size, overflow := stack.Back(2).Uint64WithOverflow()
+	if overflow || size > vars.MaxInitCodeSize {
+		return 0, ErrGasUintOverflow
+	}
+	// Since size <= vars.MaxInitCodeSize, these multiplication cannot overflow
+	moreGas := (vars.InitCodeWordGas + vars.Keccak256WordGas) * ((size + 31) / 32)
+	if gas, overflow = math.SafeAdd(gas, moreGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
@@ -367,7 +377,7 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		address        = common.Address(stack.Back(1).Bytes20())
 	)
 	// EIP161b
-	if evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP161abcTransition, evm.BlockNumber) {
+	if evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP161abcTransition, evm.Context.BlockNumber) {
 		if transfersValue && evm.StateDB.Empty(address) {
 			gas += vars.CallNewAccountGas
 		}
@@ -386,7 +396,7 @@ func gasCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		return 0, ErrGasUintOverflow
 	}
 
-	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber), contract.Gas, gas, stack.Back(0))
+	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.Context.BlockNumber), contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -411,7 +421,7 @@ func gasCallCode(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memory
 	if gas, overflow = math.SafeAdd(gas, memoryGas); overflow {
 		return 0, ErrGasUintOverflow
 	}
-	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber), contract.Gas, gas, stack.Back(0))
+	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.Context.BlockNumber), contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -426,7 +436,7 @@ func gasDelegateCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, me
 	if err != nil {
 		return 0, err
 	}
-	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber), contract.Gas, gas, stack.Back(0))
+	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.Context.BlockNumber), contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -442,7 +452,7 @@ func gasStaticCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memo
 	if err != nil {
 		return 0, err
 	}
-	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber), contract.Gas, gas, stack.Back(0))
+	evm.CallGasTemp, err = callGas(evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.Context.BlockNumber), contract.Gas, gas, stack.Back(0))
 	if err != nil {
 		return 0, err
 	}
@@ -456,11 +466,11 @@ func gasStaticCall(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memo
 func gasSelfdestruct(evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var gas uint64
 	// EIP150 homestead gas reprice fork:
-	if evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.BlockNumber) {
+	if evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP150Transition, evm.Context.BlockNumber) {
 		gas = vars.SelfdestructGasEIP150
 		var address = common.Address(stack.Back(0).Bytes20())
 
-		if evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP161abcTransition, evm.BlockNumber) {
+		if evm.ChainConfig().IsEnabled(evm.chainConfig.GetEIP161abcTransition, evm.Context.BlockNumber) {
 			// if empty and transfers value
 			if evm.StateDB.Empty(address) && evm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
 				gas += vars.CreateBySelfdestructGas
@@ -470,7 +480,7 @@ func gasSelfdestruct(evm *EVM, contract *Contract, stack *Stack, mem *Memory, me
 		}
 	}
 
-	if !evm.StateDB.HasSuicided(contract.Address()) {
+	if !evm.StateDB.HasSelfDestructed(contract.Address()) {
 		evm.StateDB.AddRefund(vars.SelfdestructRefundGas)
 	}
 	return gas, nil

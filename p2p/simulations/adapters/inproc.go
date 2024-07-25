@@ -100,7 +100,6 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 			EnableMsgEvents: config.EnableMsgEvents,
 		},
 		ExternalSigner: config.ExternalSigner,
-		NoUSB:          true,
 		Logger:         log.New("node.id", id.String()),
 	})
 	if err != nil {
@@ -148,7 +147,7 @@ func (s *SimAdapter) DialRPC(id enode.ID) (*rpc.Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown node: %s", id)
 	}
-	return node.node.Attach()
+	return node.node.Attach(), nil
 }
 
 // GetNode returns the node with the given ID if it exists
@@ -207,7 +206,7 @@ func (sn *SimNode) ServeRPC(conn *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
-	codec := rpc.NewFuncCodec(conn, conn.WriteJSON, conn.ReadJSON)
+	codec := rpc.NewFuncCodec(conn, func(v any, _ bool) error { return conn.WriteJSON(v) }, conn.ReadJSON)
 	handler.ServeCodec(codec, 0)
 	return nil
 }
@@ -275,10 +274,7 @@ func (sn *SimNode) Start(snapshots map[string][]byte) error {
 	}
 
 	// create an in-process RPC client
-	client, err := sn.node.Attach()
-	if err != nil {
-		return err
-	}
+	client := sn.node.Attach()
 	sn.lock.Lock()
 	sn.client = client
 	sn.lock.Unlock()

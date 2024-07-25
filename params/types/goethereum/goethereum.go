@@ -21,12 +21,14 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params/confp"
 	"github.com/ethereum/go-ethereum/params/types/ctypes"
 )
 
 type ChainConfig struct {
-	NetworkID uint64   `json:"-"`
-	ChainID   *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
+	NetworkID                 uint64   `json:"-"`
+	ChainID                   *big.Int `json:"chainId"`                             // chainId identifies the current chain and is used for replay protection
+	SupportedProtocolVersions []uint   `json:"supportedProtocolVersions,omitempty"` // supportedProtocolVersions identifies the supported eth protocol versions for the current chain
 
 	// HF: Homestead
 	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
@@ -56,13 +58,38 @@ type ChainConfig struct {
 	IstanbulBlock    *big.Int `json:"istanbulBlock,omitempty"`    // Istanbul switch block (nil = no fork, 0 = already on istanbul)
 	MuirGlacierBlock *big.Int `json:"muirGlacierBlock,omitempty"` // Eip-2384 (bomb delay) switch block (nil = no fork, 0 = already activated)
 
-	YoloV2Block *big.Int `json:"yoloV2Block,omitempty"` // YOLO v2 (Ephemeral testnet)
+	BerlinBlock        *big.Int `json:"berlinBlock,omitempty"`        // Berlin switch block
+	LondonBlock        *big.Int `json:"londonBlock,omitempty"`        // London switch block
+	ArrowGlacierBlock  *big.Int `json:"arrowGlacierBlock,omitempty"`  // ArrowGlacier switch block
+	GrayGlacierBlock   *big.Int `json:"grayGlacierBlock,omitempty"`   // Eip-5133 (bomb delay) switch block (nil = no fork, 0 = already activated)
+	MergeNetsplitBlock *big.Int `json:"mergeNetsplitBlock,omitempty"` // Virtual fork after The Merge to use as a network splitter
+
+	ShanghaiBlock *big.Int `json:"shanghaiBlock,omitempty"` // Shanghai switch block (nil = no fork, 0 = already on shanghai)
+	CancunBlock   *big.Int `json:"cancunBlock,omitempty"`   // Cancun switch block (nil = no fork, 0 = already on cancun)
+
+	// Fork scheduling was switched from blocks to timestamps here
+
+	ShanghaiTime *uint64 `json:"shanghaiTime,omitempty"` // Shanghai switch time (nil = no fork, 0 = already on shanghai)
+	CancunTime   *uint64 `json:"cancunTime,omitempty"`   // Cancun switch time (nil = no fork, 0 = already on cancun)
+	PragueTime   *uint64 `json:"pragueTime,omitempty"`   // Prague switch time (nil = no fork, 0 = already on prague)
+	VerkleTime   *uint64 `json:"verkleTime,omitempty"`   // Verkle switch time (nil = no fork, 0 = already on verkle)
+
+	// TerminalTotalDifficulty is the amount of total difficulty reached by
+	// the network that triggers the consensus upgrade.
+	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
+
+	// TerminalTotalDifficultyPassed is a flag specifying that the network already
+	// passed the terminal total difficulty. Its purpose is to disable legacy sync
+	// even without having seen the TTD locally (safer long term).
+	TerminalTotalDifficultyPassed bool `json:"terminalTotalDifficultyPassed,omitempty"`
 
 	EWASMBlock *big.Int `json:"ewasmBlock,omitempty"` // EWASM switch block (nil = no fork, 0 = already activated)
 
 	// Various consensus engines
-	Ethash *ctypes.EthashConfig `json:"ethash,omitempty"`
-	Clique *ctypes.CliqueConfig `json:"clique,omitempty"`
+	Ethash    *ctypes.EthashConfig `json:"ethash,omitempty"`
+	Clique    *ctypes.CliqueConfig `json:"clique,omitempty"`
+	Lyra2     *ctypes.Lyra2Config  `json:"lyra2,omitempty"`
+	IsDevMode bool                 `json:"isDev,omitempty"`
 
 	// NOTE: These are not included in this type upstream.
 	TrustedCheckpoint       *ctypes.TrustedCheckpoint      `json:"trustedCheckpoint"`
@@ -72,33 +99,91 @@ type ChainConfig struct {
 	ECIP1080Transition *big.Int `json:"-"`
 
 	// Cache types for use with testing, but will not show up in config API.
-	ecbp1100Transition *big.Int
+	ecbp1100Transition           *big.Int
+	ecbp1100DeactivateTransition *big.Int
+
+	Lyra2NonceTransitionBlock *big.Int `json:"lyra2NonceTransitionBlock,omitempty"`
+}
+
+// networkNames are user friendly names to use in the chain spec banner.
+// The key values are Chain IDs. These are not imported to avoid circular dependency issues and because
+// these values are expected to be eternally constant.
+var networkNames = map[string]string{
+	"1":        "mainnet",
+	"3":        "ropsten",
+	"4":        "rinkeby",
+	"5":        "goerli",
+	"11155111": "sepolia",
 }
 
 // String implements the fmt.Stringer interface.
 func (c *ChainConfig) String() string {
-	var engine interface{}
+	var banner string
+
+	// Create some basinc network config output
+	network := networkNames[c.ChainID.String()]
+	if network == "" {
+		network = "unknown"
+	}
+	banner += fmt.Sprintf("Chain ID:  %v (%s)\n", c.ChainID, network)
 	switch {
 	case c.Ethash != nil:
-		engine = c.Ethash
+		if c.TerminalTotalDifficulty == nil {
+			banner += "Consensus: Ethash (proof-of-work)\n"
+		} else {
+			banner += "Consensus: Beacon (proof-of-stake), merged from Ethash (proof-of-work)\n"
+		}
 	case c.Clique != nil:
-		engine = c.Clique
+		if c.TerminalTotalDifficulty == nil {
+			banner += "Consensus: Clique (proof-of-authority)\n"
+		} else {
+			banner += "Consensus: Beacon (proof-of-stake), merged from Clique (proof-of-authority)\n"
+		}
 	default:
-		engine = "unknown"
+		banner += "Consensus: unknown\n"
 	}
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v Constantinople: %v ConstantinopleFix: %v Istanbul: %v MuirGlacier: %v Engine: %v}",
-		c.ChainID,
-		c.HomesteadBlock,
-		c.DAOForkBlock,
-		c.DAOForkSupport,
-		c.EIP150Block,
-		c.EIP155Block,
-		c.EIP158Block,
-		c.ByzantiumBlock,
-		c.ConstantinopleBlock,
-		c.PetersburgBlock,
-		c.IstanbulBlock,
-		c.MuirGlacierBlock,
-		engine,
-	)
+	banner += "\n"
+	banner += fmt.Sprintf(`_ Block-based Forks: %v`, confp.BlockForks(c))
+	banner += fmt.Sprintf(`_ Time-based Forks: %v`, confp.TimeForks(c, 0))
+	banner += fmt.Sprintf(`_ TTD: %v`, c.GetEthashTerminalTotalDifficulty())
+
+	// // Create a list of forks with a short description of them. Forks that only
+	// // makes sense for mainnet should be optional at printing to avoid bloating
+	// // the output for testnets and private networks.
+	// banner += "Pre-Merge hard forks:\n"
+	// banner += fmt.Sprintf(" - Homestead:                   %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/homestead.md)\n", c.HomesteadBlock)
+	// if c.DAOForkBlock != nil {
+	// 	banner += fmt.Sprintf(" - DAO Fork:                    %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/dao-fork.md)\n", c.DAOForkBlock)
+	// }
+	// banner += fmt.Sprintf(" - Tangerine Whistle (EIP 150): %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/tangerine-whistle.md)\n", c.EIP150Block)
+	// banner += fmt.Sprintf(" - Spurious Dragon/1 (EIP 155): %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/spurious-dragon.md)\n", c.EIP155Block)
+	// banner += fmt.Sprintf(" - Spurious Dragon/2 (EIP 158): %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/spurious-dragon.md)\n", c.EIP155Block)
+	// banner += fmt.Sprintf(" - Byzantium:                   %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/byzantium.md)\n", c.ByzantiumBlock)
+	// banner += fmt.Sprintf(" - Constantinople:              %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/constantinople.md)\n", c.ConstantinopleBlock)
+	// banner += fmt.Sprintf(" - Petersburg:                  %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/petersburg.md)\n", c.PetersburgBlock)
+	// banner += fmt.Sprintf(" - Istanbul:                    %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/istanbul.md)\n", c.IstanbulBlock)
+	// if c.MuirGlacierBlock != nil {
+	// 	banner += fmt.Sprintf(" - Muir Glacier:                %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/muir-glacier.md)\n", c.MuirGlacierBlock)
+	// }
+	// banner += fmt.Sprintf(" - Berlin:                      %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/berlin.md)\n", c.BerlinBlock)
+	// banner += fmt.Sprintf(" - London:                      %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/london.md)\n", c.LondonBlock)
+	// if c.ArrowGlacierBlock != nil {
+	// 	banner += fmt.Sprintf(" - Arrow Glacier:               %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/arrow-glacier.md)\n", c.ArrowGlacierBlock)
+	// }
+	// if c.GrayGlacierBlock != nil {
+	// 	banner += fmt.Sprintf(" - Gray Glacier:                %-8v (https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/gray-glacier.md)\n", c.GrayGlacierBlock)
+	// }
+	// banner += "\n"
+	//
+	// // Add a special section for the merge as it's non-obvious
+	// if c.TerminalTotalDifficulty == nil {
+	// 	banner += "Merge not configured!\n"
+	// 	banner += " - Hard-fork specification: https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/paris.md)"
+	// } else {
+	// 	banner += "Merge configured:\n"
+	// 	banner += " - Hard-fork specification:   https://github.com/ethereum/execution-specs/blob/master/network-upgrades/mainnet-upgrades/paris.md)\n"
+	// 	banner += fmt.Sprintf(" - Total terminal difficulty: %v\n", c.TerminalTotalDifficulty)
+	// 	banner += fmt.Sprintf(" - Merge netsplit block:      %-8v", c.MergeNetsplitBlock)
+	// }
+	return banner
 }

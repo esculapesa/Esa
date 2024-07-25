@@ -48,11 +48,12 @@ func init() {
 	}
 }
 
-func Fuzz(input []byte) int {
+func fuzz(input []byte) int {
 	// Don't generate insanely large test cases, not much value in them
 	if len(input) > 16*1024 {
-		return -1
+		return 0
 	}
+	verbose := false
 	r := bytes.NewReader(input)
 
 	// Reduce the problem space for certain fuzz runs. Small tx space is better
@@ -82,6 +83,7 @@ func Fuzz(input []byte) int {
 			return make([]error, len(txs))
 		},
 		func(string, []common.Hash) error { return nil },
+		nil,
 		clock, rand,
 	)
 	f.Start()
@@ -115,6 +117,8 @@ func Fuzz(input []byte) int {
 			var (
 				announceIdxs = make([]int, announce)
 				announces    = make([]common.Hash, announce)
+				types        = make([]byte, announce)
+				sizes        = make([]uint32, announce)
 			)
 			for i := 0; i < len(announces); i++ {
 				annBuf := make([]byte, 2)
@@ -123,9 +127,13 @@ func Fuzz(input []byte) int {
 				}
 				announceIdxs[i] = (int(annBuf[0])*256 + int(annBuf[1])) % len(txs)
 				announces[i] = txs[announceIdxs[i]].Hash()
+				types[i] = txs[announceIdxs[i]].Type()
+				sizes[i] = uint32(txs[announceIdxs[i]].Size())
 			}
-			fmt.Println("Notify", peer, announceIdxs)
-			if err := f.Notify(peer, announces); err != nil {
+			if verbose {
+				fmt.Println("Notify", peer, announceIdxs)
+			}
+			if err := f.Notify(peer, types, sizes, announces); err != nil {
 				panic(err)
 			}
 
@@ -163,8 +171,9 @@ func Fuzz(input []byte) int {
 				return 0
 			}
 			direct := (directFlag % 2) == 0
-
-			fmt.Println("Enqueue", peer, deliverIdxs, direct)
+			if verbose {
+				fmt.Println("Enqueue", peer, deliverIdxs, direct)
+			}
 			if err := f.Enqueue(peer, deliveries, direct); err != nil {
 				panic(err)
 			}
@@ -177,8 +186,9 @@ func Fuzz(input []byte) int {
 				return 0
 			}
 			peer := peers[int(peerIdx)%len(peers)]
-
-			fmt.Println("Drop", peer)
+			if verbose {
+				fmt.Println("Drop", peer)
+			}
 			if err := f.Drop(peer); err != nil {
 				panic(err)
 			}
@@ -191,8 +201,9 @@ func Fuzz(input []byte) int {
 				return 0
 			}
 			tick := time.Duration(tickCnt) * 100 * time.Millisecond
-
-			fmt.Println("Sleep", tick)
+			if verbose {
+				fmt.Println("Sleep", tick)
+			}
 			clock.Run(tick)
 		}
 	}
