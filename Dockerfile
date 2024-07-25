@@ -1,5 +1,5 @@
 # Use the official Golang image as the base image
-FROM golang:1.21-alpine as builder
+FROM golang:1.21-alpine
 
 # Install necessary tools, libraries, and dependencies
 RUN apk add --no-cache gcc musl-dev linux-headers git build-base gmp-dev jq libusb-dev
