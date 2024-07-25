@@ -15,6 +15,8 @@ RUN git clone https://github.com/esculapesa/Esa.git /root/Esa && \
     git checkout EsaLatest && \
     make geth
 
+RUN ls -la
+
 # Copy the entrypoint script into the container
 COPY entrypoint.sh /root/Esa/entrypoint.sh
 
