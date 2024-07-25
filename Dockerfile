@@ -17,6 +17,10 @@ RUN git clone https://github.com/esculapesa/Esa.git /root/Esa && \
 
 # Copy the entrypoint script into the container
 COPY entrypoint.sh /root/Esa/entrypoint.sh
+
+# Debugging step to list contents of the directory
+RUN ls -la /root/Esa
+
 RUN chmod +x /root/Esa/entrypoint.sh
 
 # Set the working directory
