@@ -69,7 +69,11 @@ esacoin() {
             ${prefix} docker exec -it esanode ./build/bin/geth attach ipc:$(convert_path "$ipc_path")
         fi
     elif [ "$1" = "run" ]; then
-        docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest
+        if [ "$2" = "sh" ]; then
+            docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest sh
+        else
+            docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest
+        fi
     elif [ "$1" = "stop" ]; then
         if [ "$2" = "only" ]; then
             docker stop esanode
