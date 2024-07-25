@@ -2,7 +2,7 @@
 FROM golang:1.21-alpine
 
 # Install necessary tools, libraries, and dependencies
-RUN apk add --no-cache gcc musl-dev linux-headers git build-base gmp-dev jq libusb-dev
+RUN apk add --no-cache gcc musl-dev linux-headers git build-base gmp-dev jq libusb-dev bash
 
 # Support setting various labels on the final image
 ARG COMMIT=""
