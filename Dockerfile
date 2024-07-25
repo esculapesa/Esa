@@ -2,7 +2,7 @@
 FROM golang:1.21-alpine as builder
 
 # Install necessary tools, libraries, and dependencies
-RUN apk add --no-cache gcc musl-dev linux-headers git build-base libgmp-dev jq libusb-dev
+RUN apk add --no-cache gcc musl-dev linux-headers git build-base gmp-dev jq libusb-dev
 
 # Support setting various labels on the final image
 ARG COMMIT=""
@@ -12,7 +12,7 @@ ARG BUILDNUM=""
 # Clone the Core Geth repository and build it
 RUN git clone https://github.com/esculapesa/Esa.git /root/Esa && \
     cd /root/Esa && \
-    git checkout Esa && \
+    git checkout EsaLatest && \
     make geth
 
 # Copy the entrypoint script into the container
