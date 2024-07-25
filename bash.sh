@@ -71,7 +71,7 @@ esacoin() {
     elif [ "$1" = "run" ]; then
         if [ "$2" = "sh" ]; then
             docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest sh
-        if [ "$2" = "tag" ]; then
+        elif [ "$2" = "tag" ]; then
             docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:$3
         else
             docker run --name esanode -d -p 8545:8545 -p 30303:30303 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest
