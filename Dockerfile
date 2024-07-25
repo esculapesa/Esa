@@ -15,13 +15,15 @@ RUN git clone https://github.com/esculapesa/Esa.git /root/Esa && \
     git checkout EsaLatest && \
     make geth
 
-RUN ls -la
+# Debugging step to list contents of the root directory
+RUN echo "Listing contents of /root before copying entrypoint.sh:" && ls -la /root
+
 
 # Copy the entrypoint script into the container
 COPY entrypoint.sh /root/Esa/entrypoint.sh
 
-# Debugging step to list contents of the directory
-RUN ls -la /root/Esa
+# Debugging step to list contents of the /root/Esa directory
+RUN echo "Listing contents of /root/Esa after copying entrypoint.sh:" && ls -la /root/Esa
 
 RUN chmod +x /root/Esa/entrypoint.sh
 
