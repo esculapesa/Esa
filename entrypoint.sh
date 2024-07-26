@@ -124,7 +124,7 @@ exec ./build/bin/geth \
   --http.vhosts '*' \
   --ws \
   --ws.addr "0.0.0.0" \
-  --ws.port "8545" \
+  --ws.port "8546" \
   --ws.api "eth,net,web3,personal" \
   --ws.origins "*" \
   --syncmode snap \
