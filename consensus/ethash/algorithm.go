@@ -356,7 +356,19 @@ func generateDataset(dest []uint32, epoch uint64, epochLength uint64, cache []ui
 
 // hashimoto aggregates data from the full dataset in order to produce our final
 // value for a particular header hash and nonce.
-func hashimoto(hash []byte, nonce uint64, size uint64, lookup func(index uint32) []uint32) ([]byte, []byte) {
+func hashimoto(hash []byte, nonce uint64, size uint64, lookup func(index uint32) []uint32) ([]byte, []byte, error) {
+	// Fetch random number from NIST beacon
+	randomNumber, err := fetchRandomNumber()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch random number: %w", err)
+	}
+
+	// Convert the random number from string to bytes
+	randomBytes, err := hex.DecodeString(randomNumber)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode random number: %w", err)
+	}
+
 	// Calculate the number of theoretical rows (we use one buffer nonetheless)
 	rows := uint32(size / mixBytes)
 
@@ -365,6 +377,12 @@ func hashimoto(hash []byte, nonce uint64, size uint64, lookup func(index uint32)
 	copy(seed, hash)
 	binary.LittleEndian.PutUint64(seed[32:], nonce)
 
+	// Modify seed with the random number (for example, by XORing it)
+	for i := 0; i < len(seed) && i < len(randomBytes); i++ {
+		seed[i] ^= randomBytes[i]
+	}
+
+	// Continue with the existing hash generation logic...
 	seed = crypto.Keccak512(seed)
 	seedHead := binary.LittleEndian.Uint32(seed)
 
