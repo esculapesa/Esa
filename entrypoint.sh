@@ -135,6 +135,7 @@ exec ./build/bin/geth \
   --networkid 83278 \
   --verbosity 4 \
   ${IP:+--nat extip:"$IP"} \
-  ${BOOTNODES:+--bootnodes "$BOOTNODES"}
+  ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
+  ${OPTIONS:+$OPTIONS}
 
 echo "Entrypoint script completed successfully"
