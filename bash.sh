@@ -74,7 +74,7 @@ esacoin() {
         elif [ "$2" = "tag" ]; then
             docker run --name esanode -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:$3
         else
-            docker run --name esanode --log-driver=json-file --log-opt max-size=10m --log-opt max-file=3  -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest
+            docker run --name esanode --log-driver=json-file --log-opt max-size=10m --log-opt max-file=3  -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip -e OPTIONS=$OPTIONS esacoin/esanode:latest
         fi
     elif [ "$1" = "stop" ]; then
         if [ "$2" = "only" ]; then
