@@ -5,6 +5,8 @@ set -x  # Enable debug mode to show each command executed
 
 echo "Starting Geth with the following parameters:"
 echo "IP: $IP"
+echo "OPT: $OPT"
+echo "OPTIONS: $OPTIONS"
 echo "BOOTNODES: $BOOTNODES"
 echo "ACCOUNT_PASSWORDS: '$ACCOUNT_PASSWORDS'"
 echo "DATADIR: '$DATADIR'"
