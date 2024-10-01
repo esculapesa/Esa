@@ -15,8 +15,9 @@ echo "DATADIR: '$DATADIR'"
 # Flush output to ensure visibility
 sync
 
-# Path to the flag file
+# Path to the flag file and directories
 DATADIR="/root/.esa"
+CHAINDATA_DIR="$DATADIR/geth/chaindata"
 FLAG_FILE="$DATADIR/initialized.flag"
 GENESIS_FILE="/root/Esa/esa_genesis.json"
 UPDATED_GENESIS_FILE="/root/Esa/updated_genesis.json"
@@ -100,13 +101,18 @@ cat "$UPDATED_GENESIS_FILE"
 # Flush output to ensure visibility
 sync
 
-# Initialize the Geth node with the genesis file
-./build/bin/geth --datadir "$DATADIR" init "$GENESIS_FILE"
-
-# Check if initialization was successful
-if [ $? -ne 0 ]; then
-  echo "Failed to initialize Geth with genesis file. Stopping initialization."
-  exit 1
+# Check if chaindata directory exists before initializing
+if [ ! -d "$CHAINDATA_DIR" ]; then
+  echo "Initializing Geth with the genesis file (no previous data found)..."
+  ./build/bin/geth --datadir "$DATADIR" init "$GENESIS_FILE"
+  
+  # Check if initialization was successful
+  if [ $? -ne 0 ]; then
+    echo "Failed to initialize Geth with genesis file. Stopping initialization."
+    exit 1
+  fi
+else
+  echo "Chaindata directory found. Skipping Geth initialization."
 fi
 
 echo "Starting the Geth node now..."
