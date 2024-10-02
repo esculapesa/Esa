@@ -122,7 +122,7 @@ echo "Starting the Geth node now..."
 sync
 
 # Start the Geth node with the specified parameters
-exec./build/bin/geth \
+exec ./build/bin/geth \
   --http \
   --http.addr 127.0.0.1 \
   --http.port "8545" \
