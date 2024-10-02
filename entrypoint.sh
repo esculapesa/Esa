@@ -124,18 +124,18 @@ sync
 # Start the Geth node with the specified parameters
 exec ./build/bin/geth \
   --http \
-  --http.addr 127.0.0.1 \  # Restrict HTTP access to localhost
-  --http.port 8545 \
+  --http.addr "127.0.0.1" \ 
+  --http.port "8545" \
   --http.api admin,eth,web3,personal,net,miner \
   --ws \
-  --ws.addr 127.0.0.1 \  # Restrict WebSocket access to localhost
-  --ws.port 8546 \
+  --ws.addr "127.0.0.1" \ 
+  --ws.port "8546" \
   --ws.api eth,net,web3,personal \
   --syncmode snap \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
   --keystore "$KEYSTORE_DIR" \
-  --networkid 83278 \
+  --networkid "83278" \
   ${IP:+--nat extip:"$IP"} \
   ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
   ${OPTIONS:+$OPTIONS}
