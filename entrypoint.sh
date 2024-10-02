@@ -136,6 +136,9 @@ exec ./build/bin/geth \
   --datadir "$DATADIR" \
   --keystore "$KEYSTORE_DIR" \
   --networkid 83278 \
+  ${IP:+--nat extip:"$IP"} \
+  ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
+  ${OPTIONS:+$OPTIONS}
 
 
 echo "Entrypoint script completed successfully"
