@@ -122,23 +122,20 @@ echo "Starting the Geth node now..."
 sync
 
 # Start the Geth node with the specified parameters
-exec ./build/bin/geth \
+exec./build/bin/geth \
   --http \
-  --http.addr "127.0.0.1" \ 
+  --http.addr 127.0.0.1 \
   --http.port "8545" \
   --http.api admin,eth,web3,personal,net,miner \
   --ws \
-  --ws.addr "127.0.0.1" \ 
+  --ws.addr 127.0.0.1 \
   --ws.port "8546" \
   --ws.api eth,net,web3,personal \
   --syncmode snap \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
   --keystore "$KEYSTORE_DIR" \
-  --networkid "83278" \
-  ${IP:+--nat extip:"$IP"} \
-  ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
-  ${OPTIONS:+$OPTIONS}
+  --networkid 83278 \
 
 
 echo "Entrypoint script completed successfully"
