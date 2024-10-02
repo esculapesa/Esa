@@ -124,24 +124,21 @@ sync
 # Start the Geth node with the specified parameters
 exec ./build/bin/geth \
   --http \
-  --http.addr 0.0.0.0 \
+  --http.addr 127.0.0.1 \  # Restrict HTTP access to localhost
   --http.port 8545 \
   --http.api admin,eth,web3,personal,net,miner \
-  --http.corsdomain '*' \
-  --http.vhosts '*' \
   --ws \
-  --ws.addr "0.0.0.0" \
-  --ws.port "8546" \
-  --ws.api "eth,net,web3,personal" \
-  --ws.origins "*" \
+  --ws.addr 127.0.0.1 \  # Restrict WebSocket access to localhost
+  --ws.port 8546 \
+  --ws.api eth,net,web3,personal \
   --syncmode snap \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
-  --allow-insecure-unlock \
   --keystore "$KEYSTORE_DIR" \
   --networkid 83278 \
   ${IP:+--nat extip:"$IP"} \
   ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
   ${OPTIONS:+$OPTIONS}
+
 
 echo "Entrypoint script completed successfully"
