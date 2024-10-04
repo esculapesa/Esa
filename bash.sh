@@ -73,6 +73,9 @@ esacoin() {
             docker run --name esanode -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:latest sh
         elif [ "$2" = "tag" ]; then
             docker run --name esanode -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip esacoin/esanode:$3
+        elif [ "$2" = "boot" ]; then
+            local bootnodes = "enode://1208561ffa896031a1f59807eabd32bacf8067bfe82d55079848505d6a2b839975b4dad1266cb25bb8430b0b695cec7a1cab6a6b1f9c101072d3116303fac225@65.108.151.70:30303?discport=0"
+            docker run --name esanode --log-driver=json-file --log-opt max-size=10m --log-opt max-file=3  -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip -e OPTIONS="$OPTIONS" -e BOOTNODES=$bootnodes esacoin/esanode:latest
         else
             docker run --name esanode --log-driver=json-file --log-opt max-size=10m --log-opt max-file=3  -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip -e OPTIONS="$OPTIONS" esacoin/esanode:latest
         fi
