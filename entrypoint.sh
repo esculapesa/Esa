@@ -122,7 +122,7 @@ echo "Starting the Geth node now..."
 sync
 
 # Start the Geth node in the background
-./build/bin/geth \
+exec ./build/bin/geth \
   --http \
   --http.addr 127.0.0.1 \
   --http.port "8545" \
@@ -137,16 +137,17 @@ sync
   --keystore "$KEYSTORE_DIR" \
   --networkid 83278 \
   ${IP:+--nat extip:"$IP"} \
-  ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
+  --bootnodes "enode://1208561ffa896031a1f59807eabd32bacf8067bfe82d55079848505d6a2b839975b4dad1266cb25bb8430b0b695cec7a1cab6a6b1f9c101072d3116303fac225@65.108.151.70:30303"
+  # ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
   ${OPTIONS:+$OPTIONS} &
 
 # Wait for Geth to start
-sleep 10
+# sleep 10
 
-# Add bootnode manually
-./build/bin/geth attach /root/.esa/geth.ipc --exec "admin.addPeer(\"enode://1208561ffa896031a1f59807eabd32bacf8067bfe82d55079848505d6a2b839975b4dad1266cb25bb8430b0b695cec7a1cab6a6b1f9c101072d3116303fac225@65.108.151.70:30303\")"
+# # Add bootnode manually
+# ./build/bin/geth attach /root/.esa/geth.ipc --exec "admin.addPeer(\"enode://1208561ffa896031a1f59807eabd32bacf8067bfe82d55079848505d6a2b839975b4dad1266cb25bb8430b0b695cec7a1cab6a6b1f9c101072d3116303fac225@65.108.151.70:30303\")"
 
-echo "Bootnode added successfully"
+# echo "Bootnode added successfully"
 
-# Prevent the script from exiting (so that the container doesn't exit)
-wait
+# # Prevent the script from exiting (so that the container doesn't exit)
+# wait
