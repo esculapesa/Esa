@@ -3,7 +3,7 @@
 set -e
 set -x  # Enable debug mode to show each command executed
 
-echo "Starting Geth with the following parameters:"
+echo "Checking env variables:"
 echo "IP: $IP"
 echo "OPTIONS: $OPTIONS"
 echo "BOOTNODES: $BOOTNODES"
