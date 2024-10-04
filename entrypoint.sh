@@ -140,5 +140,14 @@ exec ./build/bin/geth \
   ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
   ${OPTIONS:+$OPTIONS}
 
-
 echo "Entrypoint script completed successfully"
+
+# Wait for Geth to start
+sleep 10
+
+# Add bootnode manually
+./build/bin/geth attach /root/.esa/geth.ipc --exec "admin.addPeer('enode://1208561ffa896031a1f59807eabd32bacf8067bfe82d55079848505d6a2b839975b4dad1266cb25bb8430b0b695cec7a1cab6a6b1f9c101072d3116303fac225@65.108.151.70:30303')"
+
+echo "Bootnode added successfully"
+
+
