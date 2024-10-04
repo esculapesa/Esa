@@ -121,8 +121,8 @@ echo "Starting the Geth node now..."
 # Flush output to ensure visibility
 sync
 
-# Start the Geth node with the specified parameters
-exec ./build/bin/geth \
+# Start the Geth node in the background
+./build/bin/geth \
   --http \
   --http.addr 127.0.0.1 \
   --http.port "8545" \
@@ -138,9 +138,7 @@ exec ./build/bin/geth \
   --networkid 83278 \
   ${IP:+--nat extip:"$IP"} \
   ${BOOTNODES:+--bootnodes "$BOOTNODES"} \
-  ${OPTIONS:+$OPTIONS}
-
-echo "Entrypoint script completed successfully"
+  ${OPTIONS:+$OPTIONS} &
 
 # Wait for Geth to start
 sleep 10
@@ -150,4 +148,5 @@ sleep 10
 
 echo "Bootnode added successfully"
 
-
+# Prevent the script from exiting (so that the container doesn't exit)
+wait
