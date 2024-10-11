@@ -124,11 +124,13 @@ sync
 # Start the Geth node in the background
 exec ./build/bin/geth \
   --http \
-  --http.addr 127.0.0.1 \
+  --http.addr 0.0.0.0 \
   --http.port "8545" \
-  --http.api admin,eth,web3,personal,net,miner \
+  --http.api eth,web3,personal,net,miner \
+  --http.corsdomain '*' \
+  --http.vhosts "*" \
   --ws \
-  --ws.addr 127.0.0.1 \
+  --ws.addr "0.0.0.0" \
   --ws.port "8546" \
   --ws.api eth,net,web3,personal \
   --syncmode snap \
