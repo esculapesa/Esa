@@ -14,16 +14,16 @@ module.exports = {
         }
       },
       {
-        version: "0.7.6",  // For Uniswap V3 contracts
+        version: "0.8.12",  // The latest version for your custom contracts
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200 // Enable optimizer for Uniswap contracts
+            runs: 200 // Enable optimizer to reduce contract size
           }
         }
       },
       {
-        version: "0.6.0",  // For contracts using older Solidity version
+        version: "0.6.0",   // Add Solidity 0.6.0 for oracle.sol and other contracts
         settings: {
           optimizer: {
             enabled: true,
