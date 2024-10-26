@@ -7,8 +7,8 @@ async function main() {
   const UniswapV3Factory = await ethers.getContractFactory("UniswapV3Factory");
   const factory = await UniswapV3Factory.deploy();
 
-  await factory.deployed();  // Ensure deployment is completed before logging
-
+  // Print the transaction hash and contract address
+  console.log("Transaction hash:", factory.deployTransaction.hash);
   console.log("UniswapV3Factory deployed to:", factory.address);
 }
 
