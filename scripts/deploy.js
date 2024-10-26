@@ -1,28 +1,32 @@
-require("dotenv").config(); // Load environment variables
-const { ethers } = require("hardhat"); // Import Hardhat's ethers outside the function
+// Load environment variables from .env
+require("dotenv").config();
+const hre = require("hardhat"); // Hardhat runtime environment (includes ethers)
 
 async function main() {
-  // Get the deployer's wallet (signer) from Hardhat's ethers
-  const [deployer] = await ethers.getSigners();
+  // Get the deployer account (first signer) from Hardhat
+  const [deployer] = await hre.ethers.getSigners();
 
-  console.log("Deploying contracts with the account:", deployer.address);
+  // Log deployer address for verification
+  console.log("Deploying contract with account:", deployer.address);
 
-  // Deploy the UniswapV3Factory contract
   try {
-    // Get the contract factory, connected explicitly to the deployer
-    const UniswapV3Factory = await ethers.getContractFactory("UniswapV3Factory", deployer);
+    // Get the contract factory for UniswapV3Factory
+    const UniswapV3Factory = await hre.ethers.getContractFactory("UniswapV3Factory");
 
     // Deploy the contract
     const factory = await UniswapV3Factory.deploy();
 
+    // Log the transaction hash
     console.log("Transaction hash:", factory.deployTransaction.hash);
 
-    // Wait for deployment to be mined
-    const receipt = await factory.deploymentTransaction().wait();
-    console.log("UniswapV3Factory deployed to:", receipt.contractAddress);
+    // Wait for the deployment to be mined
+    const receipt = await factory.deployTransaction.wait();
+
+    // Log the contract address after deployment
+    console.log("UniswapV3Factory deployed at address:", factory.address);
 
   } catch (error) {
-    console.error("Error deploying contract:", error);
+    console.error("Error during deployment:", error);
   }
 }
 
