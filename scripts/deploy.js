@@ -1,5 +1,4 @@
-// Load environment variables from .env
-require("dotenv").config();
+require("dotenv").config(); // Load environment variables
 const hre = require("hardhat"); // Hardhat runtime environment (includes ethers)
 
 async function main() {
@@ -16,6 +15,11 @@ async function main() {
     // Deploy the contract
     const factory = await UniswapV3Factory.deploy();
 
+    // Check if the deploy transaction is defined
+    if (!factory.deployTransaction) {
+      throw new Error("Deployment transaction not found.");
+    }
+
     // Log the transaction hash
     console.log("Transaction hash:", factory.deployTransaction.hash);
 
@@ -27,6 +31,12 @@ async function main() {
 
   } catch (error) {
     console.error("Error during deployment:", error);
+    if (error.transaction) {
+      console.error("Transaction details:", error.transaction);
+    }
+    if (error.receipt) {
+      console.error("Transaction receipt:", error.receipt);
+    }
   }
 }
 
