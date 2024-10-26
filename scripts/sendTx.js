@@ -1,9 +1,9 @@
-require("dotenv").config(); // Load environment variables
-const { ethers } = require("ethers"); // Proper import
+require("dotenv").config();
+const { JsonRpcProvider, Wallet, parseEther } = require("ethers"); // Updated for ethers v6
 
 async function main() {
   // Create a JSON-RPC provider using the Esa network RPC URL
-  const provider = new ethers.providers.JsonRpcProvider("http://65.108.151.70:8545");
+  const provider = new JsonRpcProvider("http://65.108.151.70:8545");
 
   // Get the private key from the environment variable
   const privateKey = process.env.PRIVATE_KEY;
@@ -14,12 +14,12 @@ async function main() {
   }
 
   // Create a wallet with the private key and provider
-  const wallet = new ethers.Wallet(privateKey, provider);
+  const wallet = new Wallet(privateKey, provider);
 
   // Define the transaction
   const tx = {
     to: "0x0545F8823b77D3Ed39f24B2a7264CEcbe0569756", // Receiver address
-    value: ethers.utils.parseEther("0.01") // Sending 0.01 of the native currency
+    value: parseEther("0.01") // Sending 0.01 of the native currency (updated for v6)
   };
 
   try {
