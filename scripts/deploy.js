@@ -1,26 +1,16 @@
 require("dotenv").config(); // Load environment variables
-const { ethers } = require("ethers");
+const { ethers } = require("hardhat"); // Import Hardhat's ethers outside the function
 
 async function main() {
-  const provider = new ethers.JsonRpcProvider("http://65.108.151.70:8545");
-  
-  // Get the private key from the environment variable
-  const privateKey = process.env.PRIVATE_KEY;
-  
-  if (!privateKey) {
-    console.error("Private key not set in the environment");
-    return;
-  }
+  // Get the deployer's wallet (signer) from Hardhat's ethers
+  const [deployer] = await ethers.getSigners();
 
-  // Create a wallet with the private key and provider
-  const wallet = new ethers.Wallet(privateKey, provider);
-  
-  console.log("Deploying contracts with the account:", wallet.address);
+  console.log("Deploying contracts with the account:", deployer.address);
 
   // Deploy the UniswapV3Factory contract
   try {
-    // Get the contract factory (assumes contract is already compiled)
-    const UniswapV3Factory = await ethers.getContractFactory("UniswapV3Factory", wallet);
+    // Get the contract factory, connected explicitly to the deployer
+    const UniswapV3Factory = await ethers.getContractFactory("UniswapV3Factory", deployer);
 
     // Deploy the contract
     const factory = await UniswapV3Factory.deploy();
