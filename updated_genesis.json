@@ -26,6 +26,8 @@
     "eip1884FBlock": 0,
     "eip2028FBlock": 0,
     "eip2200FBlock": 0,
+    "berlinBlock": 201800,
+    "londonBlock": 201816,
     "disposalBlock": 0,
     "ethash": {},
     "requireBlockHashes": {}
