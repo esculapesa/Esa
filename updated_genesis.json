@@ -1,56 +1,35 @@
 {
   "config": {
-    "networkId": 83278,
-    "chainId": 83278,
-    "eip2FBlock": 0,
-    "eip7FBlock": 0,
-    "eip150Block": 0,
-    "eip155Block": 0,
-    "eip160Block": 0,
-    "eip161FBlock": 0,
-    "eip170FBlock": 0,
-    "eip100FBlock": 0,
-    "eip140FBlock": 0,
-    "eip198FBlock": 0,
-    "eip211FBlock": 0,
-    "eip212FBlock": 0,
-    "eip213FBlock": 0,
-    "eip214FBlock": 0,
-    "eip658FBlock": 0,
-    "eip145FBlock": 0,
-    "eip1014FBlock": 0,
-    "eip1052FBlock": 0,
-    "eip152FBlock": 0,
-    "eip1108FBlock": 0,
-    "eip1344FBlock": 0,
-    "eip1884FBlock": 0,
-    "eip2028FBlock": 0,
-    "eip2200FBlock": 0,
-    "berlinBlock": 204100,
-    "londonBlock": 204111,
-    "disposalBlock": 0,
-    "ethash": {},
-    "requireBlockHashes": {}
-  },
-  "nonce": "0x0",
-  "timestamp": "0x6048d57c",
-  "extraData": "0x42",
-  "gasLimit": "0x2fefd8",
-  "difficulty": "0x20000",
-  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "coinbase": "0x0000000000000000000000000000000000000000",
-  "number": "0x0",
-  "gasUsed": "0x0",
-  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "alloc": {
-    "0xdbb9a7b465a515642050a5788d6d5575e7732c07": {
-      "balance": "0x341CC4D7E46E7A9F000000"
-    },
-    "0xdb95ba98b54f6c078daad9c07783f2efeccefff6": {
-      "balance": "0x457BB11FDB3DF8D4000000"
-    },
-    "0x9636470f2e7093f324a745e6971342c150b4b5a9": {
-      "balance": "0x341CC4D7E46E7A9F000000"
-    }
-  }
-}
+     "chainId": 83278,
+     "homesteadBlock": 0,
+     "eip150Block": 10,
+     "eip155Block": 20,
+     "eip158Block": 20,
+     "byzantiumBlock": 30,
+     "constantinopleBlock": 40,
+     "petersburgBlock": 40,
+     "istanbulBlock": 50,
+     "berlinBlock": 60,
+     "londonBlock": 70,
+     "ethash": {}
+   },
+   "networkId": 83278,
+   "timestamp": "0x6048d57c",
+   "extraData": "0x42",
+   "gasLimit": "0x2fefd8",
+   "difficulty": "0x20000",
+   "number": "0x0",
+   "gasUsed": "0x0",
+   "alloc": {
+     "0xdbb9a7b465a515642050a5788d6d5575e7732c07": {
+       "balance": "0x341CC4D7E46E7A9F000000"
+     },
+     "0xdb95ba98b54f6c078daad9c07783f2efeccefff6": {
+       "balance": "0x457BB11FDB3DF8D4000000"
+     },
+     "0x9636470f2e7093f324a745e6971342c150b4b5a9": {
+       "balance": "0x341CC4D7E46E7A9F000000"
+     }
+   }
+ }
+ 
