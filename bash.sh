@@ -87,7 +87,7 @@ esacoin() {
         fi
     elif [ "$1" = "docker" ]; then
         if [ "$2" = "build" ]; then
-            docker --no-cache build -t esacoin/esanode:latest .
+            docker build --no-cache -t esacoin/esanode:latest .
         elif [ "$2" = "pull" ]; then
             docker pull esacoin/esanode:latest
         elif [ "$2" = "push" ]; then
