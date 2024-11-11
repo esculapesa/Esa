@@ -137,7 +137,7 @@ exec ./build/bin/geth \
   --ipcpath "$DATADIR/geth.ipc" \
   --datadir "$DATADIR" \
   --keystore "$KEYSTORE_DIR" \
-  --networkid 654 \
+  --networkid 64879 \
   ${IP:+--nat extip:"$IP"} \
   --bootnodes "enode://5ad05493f9d27fcb7a897419c630f21094f43093361e89ebf1e9eefc50276844f7e7caef8f83274bb12df48a40e48befd788d0d8aadec4c016b3ddd2887fcecc@65.108.151.70:30303,
                enode://9c233bd8939cb53f3775b52a325d0c04421a2cb0be839695de5a89324b594c645ce9708c8c6d5fb0b85c24aa0a5da6b45ce3dbfdf69d0c40e1370d98a5aa2952@94.130.183.160:30303,
