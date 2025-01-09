@@ -85,6 +85,11 @@ esacoin() {
             docker stop esanode
             docker rm esanode
         fi
+    elif [ "$1" = "restart" ]; then 
+        docker stop esanode 
+        docker rm esanode
+        sudo rm $this_root_path/geth/transactions.rlp
+        docker run --name esanode --log-driver=json-file --log-opt max-size=10m --log-opt max-file=3  -d -p 8545:8545 -p 30303:30303 -p 8546:8546 -v ${this_root_path}:/root/.esa -e IP=$conv_ip -e OPTIONS="$OPTIONS" esacoin/esanode:latest
     elif [ "$1" = "docker" ]; then
         if [ "$2" = "build" ]; then
             docker build --no-cache -t esacoin/esanode:latest .
@@ -96,7 +101,7 @@ esacoin() {
             docker ps
         fi
     elif [ "$1" = "clean" ]; then
-        sudo rm -rf $this_root_path
+        sudo rm -rf $this_root_path 
         if [ "$2" = "all" ]; then
             docker stop $(docker ps -q)
             docker rm $(docker ps -a -q)
